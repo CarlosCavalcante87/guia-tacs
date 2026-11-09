@@ -1,0 +1,912 @@
+/* Regras dos indicadores C1–C7 e cartões */
+    // C2: 1ª visita até 30 dias de vida; 2ª depois do 30º dia e até 6 meses
+    function avaliarVisitasC2(nasc, v1, v2, qtd) {
+      const hoje = new Date();
+      const r = { ok: false, pend: [], tempo: '', tempoOk: false };
+      if (!nasc || isNaN(nasc.getTime())) {
+        r.ok = qtd >= 2;
+        if (!r.ok) r.pend.push(`Visita Domiciliar pendente (${qtd}/2 visitas)`);
+        return r;
+      }
+      const lim1 = somarDias(nasc, 30), ini2 = somarDias(nasc, 31), lim2 = somarMeses(nasc, 6), fim24 = somarMeses(nasc, 24);
+      const d1 = v1 ? diasEntre(nasc, v1) : null;
+      const d2 = v2 ? diasEntre(nasc, v2) : null;
+      const ok1 = !!v1 && d1 >= 0 && d1 <= 30;
+      const ok2 = !!v2 && d2 > 30 && v2 <= lim2;
+      r.ok1 = ok1; r.ok2 = ok2;
+      const partes = [];
+      const marca = ok => (hoje > fim24) ? '' : (ok ? ' ✓' : ' ✗');   // acima de 24 meses só informa, sem cobrar prazo
+      if (v1) partes.push(`1ª aos ${d1} dias${marca(ok1)}`);
+      if (v2) partes.push(`2ª aos ${d2} dias${marca(ok2)}`);
+      if (v1 && v2) partes.push(`${diasEntre(v1, v2)} dias entre elas`);
+      r.tempo = partes.length ? '⏱ ' + partes.join(' · ') : '⏱ Sem visitas registradas';
+      if (hoje > fim24) {            // acima de 24 meses: o prazo das visitas já encerrou
+        r.ok = qtd >= 2; r.tempoOk = r.ok;
+        return r;
+      }
+      r.ok = ok1 && ok2;
+      r.tempoOk = r.ok;
+            const janela2 = `entre ${fmtData(ini2)} e ${fmtData(lim2)}`;
+      if (!ok1) {
+        if (!v1) r.pend.push(hoje <= lim1 ? `Visitar até ${fmtData(lim1)} · motivo: "Recém-nascido"` : `1ª visita não registrada (prazo terminou em ${fmtData(lim1)})`);
+        else r.pend.push(`1ª visita foi aos ${d1} dias de vida (fora do prazo de 30 dias)`);
+      }
+      if (!ok2) {
+        if (!v2) r.pend.push(hoje <= lim2 ? `Visitar ${janela2} · motivo: "Criança"` : `2ª visita não registrada (prazo terminou em ${fmtData(lim2)})`);
+        else if (d2 <= 30) r.pend.push(hoje <= lim2 ? `Visitar ${janela2} (a visita aos ${d2} dias não conta) · motivo: "Criança"` : `2ª visita aos ${d2} dias não conta (prazo terminou em ${fmtData(lim2)})`);
+        else r.pend.push(`2ª visita foi aos ${d2} dias de vida (fora do prazo de 6 meses)`);
+      }
+      return r;
+    }
+
+// Telefone -> link do WhatsApp (abre o WhatsApp ou o WhatsApp Business instalado no celular)
+// Ícone ao lado do telefone: usa o arquivo icone-whatsapp.png (se estiver na pasta do app) ou um ícone simples de mensagem
+    let temIconeWa = false;
+    function htmlIconeMsg() {
+      if (temIconeWa) return '<img class="ico-wa" src="./icone-whatsapp.png" alt="" width="20" height="20">';
+      return '<svg class="ico-msg" viewBox="0 0 24 24" width="18" height="18" fill="#25D366" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+    }
+    fetch('./icone-whatsapp.png', { method: 'HEAD' }).then(r => {
+      if (r.ok) { temIconeWa = true; if (typeof filtrarLista === 'function' && Object.keys(BASE_DADOS.cidadaos).length) filtrarLista(); }
+    }).catch(() => {});
+
+    function linkWhatsApp(tel) {
+      let d = (tel || '').replace(/\D/g, '').replace(/^0+/, '');
+      if (d.length < 10 || d.slice(-8) === '00000000') return null;
+      if (d.length <= 11) d = '55' + d;
+      return `https://wa.me/${d}`;
+    }
+
+function idadeEmAnos(dtStr) {
+      const n = parseDataJS(dtStr);
+      if (!n || isNaN(n.getTime())) return null;
+      const hoje = new Date();
+      let a = hoje.getFullYear() - n.getFullYear();
+      if (hoje.getMonth() < n.getMonth() || (hoje.getMonth() === n.getMonth() && hoje.getDate() < n.getDate())) a--;
+      return a;
+    }
+
+    function calcularIdade(dtStr) {
+      const n = parseDataJS(dtStr);
+      if (!n || isNaN(n.getTime())) return '';
+      const hoje = new Date();
+      let anos = hoje.getFullYear() - n.getFullYear();
+      let meses = hoje.getMonth() - n.getMonth();
+      if (hoje.getDate() < n.getDate()) meses--;
+      if (meses < 0) { anos--; meses += 12; }
+      if (anos < 0) return '';
+      const a = anos === 1 ? '1 ano' : `${anos} anos`;
+      const m = meses === 1 ? '1 mês' : `${meses} meses`;
+      if (anos === 0) return meses === 0 ? 'menos de 1 mês' : m;
+      return meses === 0 ? a : `${a} e ${m}`;
+    }
+
+    // Quais planilhas já foram importadas (guardado no aparelho): permite importar uma por uma, em dias/momentos diferentes
+    const PLANILHAS_OK_KEY = 'guia_planilhas_ok';
+    function lerPlanilhasOk() { try { return JSON.parse(localStorage.getItem(PLANILHAS_OK_KEY)) || {}; } catch (e) { return {}; } }
+    function limparListaPlanilhas() {
+      try { localStorage.removeItem(PLANILHAS_OK_KEY); localStorage.removeItem('guia_vac_relatorios'); } catch (e) {}
+      const pg = document.getElementById('progressoUpload'); if (pg) pg.innerHTML = '';
+      inicializarListaPlanilhas();
+    }
+    function inicializarListaPlanilhas(resumoVacTxt) {
+      const listaDiv = document.getElementById('listaArquivosUpload'); if (!listaDiv) return;
+      const ok = lerPlanilhasOk(); const vacs = Object.values(lerRelatoriosVacImportados());
+      const relDe = (p) => vacs.filter(v => (v.tipo === p.vac[0] || v.tipo === 'todas') && (v.g === p.vac[1] || !v.g));   // sem filtro de status vale para os dois status
+      const feita = (p) => p.vac ? relDe(p).length > 0 : !!ok[p.id];
+      const feitas = PLANILHAS_ESPERADAS.filter(feita).length;
+      const dts = new Set(vacs.map(v => v.data).filter(Boolean));
+      let html = `<div class="file-list-header">
+            <span>${feitas} de ${PLANILHAS_ESPERADAS.length} planilhas processadas</span>
+            ${feitas ? '<span class="btn-limpar" onclick="limparListaPlanilhas()">Limpar lista</span>' : ''}
+          </div>`;
+      PLANILHAS_ESPERADAS.forEach(p => {
+        if (p.vac && feita(p)) {
+          const linhas = relDe(p).map(v => `✓ ${escHtml(v.grupo)} · ${v.pessoas} pessoa(s)${v.data ? ' · ' + escHtml(v.data) : ''}`).join('<br>');
+          const aviso = (p.id === 'vac_prazo_ado' && dts.size > 1) ? '<br><span class="file-item-falta">⚠️ Atrasada e No prazo são de datas diferentes: baixe os dois no mesmo dia.</span>' : '';
+          const resumo = (p.id === 'vac_atrasada_cri' && resumoVacTxt) ? '<br>' + escHtml(resumoVacTxt) : '';
+          html += `<div class="file-item"><div class="file-item-icon">✓</div><div class="file-item-content">
+            <div class="file-item-title">${p.icone} ${p.titulo}</div>
+            <div class="file-item-status">${linhas}${resumo}${aviso}</div></div></div>`;
+        } else if (!p.vac && ok[p.id]) {
+          const info = ok[p.id];
+          if (info.count > 0) {
+            const textoBf = info.bf > 0 ? `, ${info.bf} no Bolsa Família` : '';
+            html += `<div class="file-item"><div class="file-item-icon">✓</div><div class="file-item-content">
+              <div class="file-item-title">${p.icone} ${p.titulo}</div>
+              <span class="file-item-name">${escHtml(info.nome)}</span>
+              <div class="file-item-status">✓ ${info.count} pacientes identificados${textoBf}.${info.data ? ' ' + escHtml(info.data) : ''}</div></div></div>`;
+          } else {
+            html += `<div class="file-item"><div class="file-item-icon error">!</div><div class="file-item-content">
+              <div class="file-item-title">${p.icone} ${p.titulo}</div>
+              <span class="file-item-name">${escHtml(info.nome)}</span>
+              <div class="file-item-status error">Ficheiro sem pacientes válidos.</div></div></div>`;
+          }
+        } else {
+          html += `<div class="file-item"><div class="file-item-icon pending">-</div><div class="file-item-content">
+            <div class="file-item-title">${p.icone} ${p.titulo}</div>
+            <div class="file-item-status pending">${p.desc}</div></div></div>`;
+        }
+      });
+      listaDiv.innerHTML = html;
+    }
+
+
+    // Lista as planilhas esperadas que ainda não foram importadas
+    function planilhasFaltando() {
+      const ok = lerPlanilhasOk(); const vacs = Object.values(lerRelatoriosVacImportados());
+      return PLANILHAS_ESPERADAS.filter(p => p.vac
+        ? !vacs.some(v => (v.tipo === p.vac[0] || v.tipo === 'todas') && (v.g === p.vac[1] || !v.g))
+        : !ok[p.id]);
+    }
+    // Pop-up pós-importação: avisa quais planilhas faltam (ou que está tudo certo); após o OK vai para a aba Indicadores
+    function mostrarAvisoImportacao() {
+      const faltam = planilhasFaltando(), total = PLANILHAS_ESPERADAS.length;
+      const modal = document.getElementById('modalImportacao'); if (!modal) { alternarAba('dashboard'); return; }
+      const ul = document.getElementById('impFaltam');
+      if (!faltam.length) {
+        document.getElementById('impIcone').textContent = '✅';
+        document.getElementById('impTitulo').textContent = 'Todas as planilhas importadas';
+        document.getElementById('impTexto').textContent = `As ${total} planilhas foram processadas.`;
+        ul.innerHTML = '';
+      } else {
+        document.getElementById('impIcone').textContent = '⚠️';
+        document.getElementById('impTitulo').textContent = faltam.length === 1 ? 'Falta 1 planilha' : `Faltam ${faltam.length} planilhas`;
+        document.getElementById('impTexto').textContent = `${total - faltam.length} de ${total} planilhas processadas. O grupo de cada planilha que falta fica desatualizado.`;
+        ul.innerHTML = faltam.map(p => `<li style="padding:6px 0; border-top:1px solid #e2e8f0;">${p.icone} <b>${escHtml(p.titulo)}</b><br><span style="font-size:0.75rem; color:var(--text-muted);">${escHtml(p.desc.replace(/^Falta · /, ''))}</span></li>`).join('');
+      }
+      modal.classList.add('aberto');
+    }
+    function fecharModalImportacao() {
+      document.getElementById('modalImportacao').classList.remove('aberto');
+      alternarAba('dashboard');
+    }
+
+    async function processarFicheiros(files, esperado) {
+      if (!files.length) return;
+      const prog = document.getElementById('progressoUpload');
+      const listaDiv = document.getElementById('listaArquivosUpload');
+      
+      prog.style.color = "#0284c7";
+      prog.innerHTML = `⏳ Lendo ${files.length} arquivo(s)...`;
+      
+      const fotoAntes = fotoIndicadores();
+      cpfToChave = {}; nomeToChave = {};
+      let arquivosProcessados = {};
+      const perfilDetectado = {};
+      const relatoriosVacinacao = [];
+      const limpaValor = (v) => (v || '').toString().replace(/^"|"$/g, '').trim();
+      const detectarPerfil = (chaveBruta, valorBruto) => {
+        const k = normalizarTexto(chaveBruta);
+        const v = limpaValor(valorBruto);
+        if (!v || v === '-' || v.length > 80) return;
+        if (!perfilDetectado.micro && (k.includes('microarea') || k.includes('micro-area') || k.includes('micro area'))) perfilDetectado.micro = v;
+        if (!perfilDetectado.nome && (k.includes('agente comunitario') || k === 'acs' || k.includes('nome do acs') || k.includes('profissional'))) perfilDetectado.nome = v;
+      };
+
+      for (let file of files) {
+        let textoArquivo;
+        try { textoArquivo = await obterTextoArquivo(file); }
+        catch (e) { avisoToast('Não foi possível ler ' + file.name + ': ' + e.message); continue; }
+        await new Promise((resolve) => {
+          const reader = { result: textoArquivo };
+          const processar = () => {
+            const linhas = reader.result.split(/\r?\n/);
+            let tema = "", cabIdx = -1, ehVac = false, ehMatriz = false;
+            for (let i = 0; i < Math.min(linhas.length, 35); i++) {
+              const l = linhas[i].trim();
+              {
+                const pc = l.split(';');
+                if (pc.length >= 2) detectarPerfil(pc[0], pc[1]);
+                // Linha "Gerado em ; data ; às ; hora ; por ; NOME"
+                const iPor = pc.findIndex(cel => normalizarTexto(limpaValor(cel)) === 'por');
+                if (iPor !== -1 && !perfilDetectado.nome) {
+                  const nomeAcs = pc.slice(iPor + 1).map(limpaValor).find(x => x && x !== '-');
+                  if (nomeAcs) perfilDetectado.nome = nomeAcs;
+                }
+              }
+              if (l.includes("Lista temática;")) tema = l.split(";")[1]?.trim();
+              if (normalizarTexto(l).includes('busca ativa de vacina')) ehVac = true;
+              if (l.startsWith("Nome do cidadão;")) { cabIdx = i; break; }
+              if (/^CPF;CNS;Nome;Nascimento;/.test(l)) { cabIdx = i; ehVac = true; ehMatriz = true; break; }
+              if (l.startsWith("Nome;") || l.startsWith("NOME CIDADÃO;") || l.startsWith("Nome equipe;") || l.startsWith("TIPO DE LOGRADOURO;")) {
+                cabIdx = i; break;
+              }
+            }
+
+            let matchedId = null;
+            const temaNorm = normalizarTexto(tema);
+            if (ehVac) matchedId = 'vacinacao';
+            else if (temaNorm.includes("desenvolvimento infantil")) matchedId = 'criancas';
+            else if (temaNorm.includes("gestacao e puerperio")) matchedId = 'gestantes';
+            else if (temaNorm.includes("diabetes")) matchedId = 'diabeticos';
+            else if (temaNorm.includes("hipertensao")) matchedId = 'hipertensos';
+            else if (temaNorm.includes("pessoa idosa")) matchedId = 'idosos';
+            else if (temaNorm.includes("saude da mulher")) matchedId = 'mulher';
+            else if (tema) matchedId = 'lista_geral';
+            else {
+              const fname = file.name.toLowerCase();
+              if (fname.includes('cidadaos') || fname.includes('cadastro')) matchedId = 'cadastros';
+              else if (fname.includes('territorio') || fname.includes('domiciliar') || fname.includes('familia')) matchedId = 'territorio';
+              else matchedId = 'lista_geral';
+            }
+            
+            if (esperado && !(ehVac && cabIdx !== -1)) { avisoToast(`“${file.name}” não parece ser um relatório de busca ativa de vacinação. Não importei esse arquivo.`); resolve(); return; }
+            let countAtualizados = 0;
+            let countBolsaFamiliaFile = 0;
+
+            if (ehVac && cabIdx !== -1) {
+              const rel = ehMatriz ? lerMatrizVacinacao(linhas, cabIdx) : lerRelatorioVacinacao(linhas, cabIdx); rel.meta.arquivo = file.name;
+              if (esperado && !ehMatriz) { const t = tipoStatusVacinacao(rel.meta); if (t !== 'todas' && t !== esperado) avisoToast(`“${file.name}” é do relatório “${ROTULO_STATUS_VAC[t]}”, mas foi escolhido em “${ROTULO_STATUS_VAC[esperado]}”. Importei assim mesmo.`); }
+              relatoriosVacinacao.push(rel);
+              countAtualizados = new Set(rel.rows.map(r => r.nome)).size;
+            } else if (cabIdx !== -1) {
+              const colunas = linhas[cabIdx].split(";").map(c => c.trim().replace(/^"|"$/g, ''));
+              for (let i = cabIdx + 1; i < linhas.length; i++) {
+                const linha = linhas[i].trim();
+                if (!linha) continue;
+                const vals = linha.split(";").map(v => v.trim().replace(/^"|"$/g, ''));
+                const reg = {};
+                colunas.forEach((col, idx) => { reg[col] = vals[idx] || ""; });
+                
+                const nome = (reg["Nome"] || reg["NOME CIDADÃO"] || "").trim().toUpperCase();
+                if (!nome || nome === "-" || nome === "SEM MORADORES" || nome.length < 3) continue;
+                
+                countAtualizados++;
+                for (let kPerf in reg) detectarPerfil(kPerf, reg[kPerf]);
+
+                const cpfLimpo = (reg["CPF"] || reg["CPF/CNS"] || "").replace(/\D/g, "");
+                const cpfValido = (cpfLimpo.length === 11) ? cpfLimpo : "";
+                let chave = null;
+                if (cpfValido && cpfToChave[cpfValido]) chave = cpfToChave[cpfValido];
+                else if (nomeToChave[nome]) chave = nomeToChave[nome];
+                else chave = cpfValido ? cpfValido : nome;
+
+                if (cpfValido) cpfToChave[cpfValido] = chave;
+                if (nome) nomeToChave[nome] = chave;
+
+                let ruaBruta = (reg["Rua"] || reg["LOGRADOURO"] || "").trim().toUpperCase();
+                if (ruaBruta.includes("SÃO FRANCISCO") || ruaBruta.includes("SAO FRANCISCO")) ruaBruta = "RUA SÃO FRANCISCO";
+                else if (ruaBruta.includes("SÃO PEDRO") || ruaBruta.includes("SAO PEDRO")) ruaBruta = "RUA SÃO PEDRO";
+                else if (ruaBruta && !ruaBruta.startsWith("RUA ") && !ruaBruta.startsWith("AVENIDA ")) ruaBruta = "RUA " + ruaBruta;
+
+                if (!BASE_DADOS.cidadaos[chave]) {
+                  BASE_DADOS.cidadaos[chave] = {
+                    nome: nome, cpf: reg["CPF"] || reg["CPF/CNS"] || "", 
+                    rua: ruaBruta, numero: reg["Número"] || reg["NÚMERO"] || "",
+                    telefone: reg["Telefone celular"] || "", condicoes: {}, indicadores: { "C1": true }, pendencias: [],
+                    bolsaFamilia: false
+                  };
+                }
+                
+                const cid = BASE_DADOS.cidadaos[chave];
+                absorverMedidas(cid, reg);
+                cid.indicadores['C1'] = true;
+                if (!cid.nome) cid.nome = nome;
+                if (!cid.rua && ruaBruta) cid.rua = ruaBruta;
+                if (cid.rua) BASE_DADOS.ruas.add(cid.rua);
+
+                // Data de nascimento / idade (se a planilha trouxer)
+                for (let key in reg) {
+                  const kn = normalizarTexto(key);
+                  if (kn.includes("nascimento") && reg[key] && reg[key] !== "-") {
+                    cid.dt_nascimento = reg[key];
+                  }
+                }
+                if (reg["Sexo"] && reg["Sexo"] !== "-") cid.sexo = reg["Sexo"];
+                if (reg["Idade"] && reg["Idade"] !== "-") cid.idade_txt = reg["Idade"];
+                else if (reg["IDADE"] && reg["IDADE"] !== "-") cid.idade_txt = reg["IDADE"];
+
+                // Completa número da casa, telefone, CNS e CPF quando outra planilha trouxer
+                for (let key in reg) {
+                  const kn = normalizarTexto(key);
+                  const val = (reg[key] || "").trim();
+                  if (!val || val === "-") continue;
+                  if ((kn === "numero" || kn === "n°" || kn === "no" || kn.startsWith("numero ")) && !cid.numero) cid.numero = val;
+                  if (kn === "telefone celular" && !cid.telefone) cid.telefone = val;
+                  if (kn === "complemento") cid.complemento = val;   // "23" e "23 A" são casas diferentes
+                }
+                if (cpfValido && !temCpf(cid)) cid.cpf = cpfValido;   // outra planilha trouxe o CPF que faltava
+                if (cid.bolsaFamilia === undefined) cid.bolsaFamilia = false;
+
+                let matchedBf = false;
+                for (let key in reg) {
+                  let keyLower = key.toLowerCase();
+                  let valLower = reg[key].toLowerCase();
+                  if (keyLower.includes("bolsa") || keyLower.includes("auxílio") || keyLower.includes("auxilio") || keyLower.includes("benefício") || keyLower.includes("beneficio")) {
+                    if (valLower === "sim" || valLower === "s" || valLower === "true" || valLower === "1") {
+                      matchedBf = true;
+                    }
+                  }
+                  if (valLower.includes("bolsa família") || valLower.includes("bolsa familia") || valLower.includes("auxílio brasil")) {
+                    matchedBf = true;
+                  }
+                }
+                if (tema.toLowerCase().includes("bolsa fam") || tema.toLowerCase().includes("auxílio")) {
+                  matchedBf = true;
+                }
+
+                const jaEraBf = cid.bolsaFamilia;
+                if (matchedBf) {
+                  cid.bolsaFamilia = true;
+                }
+                if (!jaEraBf && cid.bolsaFamilia) {
+                  countBolsaFamiliaFile++;
+                }
+
+                if (reg["Última atualização cadastral"] && reg["Última atualização cadastral"] !== "-") {
+                  cid.dt_cadastral = reg["Última atualização cadastral"];
+                }
+                // C1: cadastro individual (data do relatório) e, se o relatório trouxer, cadastro domiciliar. Vale até 1 ano.
+                for (let key in reg) {
+                  const kn = normalizarTexto(key);
+                  const v = (reg[key] || "").trim();
+                  if (kn.includes("atualiza") && kn.includes("cadastr") && (kn.includes("domicil") || kn.includes("famili") || kn.includes("moradia")) && /\d/.test(v)) cid.dt_cad_dom = v;
+                }
+                avaliarC1(cid);
+
+                // =========================================================================
+                // C2: CRIANÇAS DE 0 A 4 ANOS (LISTA DESENVOLVIMENTO INFANTIL)
+                // =========================================================================
+                let idadeStr = (reg["Idade"] || reg["IDADE"] || "").toLowerCase();
+                let faixaEtariaStr = (reg["Faixa etária"] || reg["FAIXA ETÁRIA"] || "").toLowerCase();
+                
+                // Deteta se é criança (por idade numérica < 10 anos ou menção a infância/criança)
+                let numIdade = parseInt(idadeStr) || 99;
+                let isCriancaEtaria = (numIdade < 10 || faixaEtariaStr.includes("criança") || faixaEtariaStr.includes("infantil") || faixaEtariaStr.includes("0 a") || faixaEtariaStr.includes("1 ano") || faixaEtariaStr.includes("2 ano") || faixaEtariaStr.includes("3 ano") || faixaEtariaStr.includes("4 ano") || faixaEtariaStr.includes("5 ano"));
+                let isCriancaRow = (tema === "Desenvolvimento infantil" || tema.toLowerCase().includes("criança") || tema.toLowerCase().includes("infantil") || tema.toLowerCase().includes("puericultura") || isCriancaEtaria);
+
+                let vacinasPendentesList = [];
+                for (let key in reg) {
+                  let kLow = key.toLowerCase();
+                  let vLow = reg[key].toLowerCase();
+                  if (kLow.includes("vacina") || kLow.includes("penta") || kLow.includes("pólio") || kLow.includes("polio") || kLow.includes("tríplice") || kLow.includes("pneumo") || kLow.includes("rota") || kLow.includes("febre") || kLow.includes("bcg") || kLow.includes("meningo")) {
+                    if (vLow === "" || vLow === "-" || vLow.includes("não") || vLow.includes("sem registro") || vLow.includes("atrasad") || vLow.includes("pendent")) {
+                      vacinasPendentesList.push(`${key}: ${reg[key] || "Pendente"}`);
+                    }
+                  }
+                }
+
+                const temColunasC2 = ("Quantidade de visitas domiciliares até os 24 meses de idade" in reg) || ("Poliomielite" in reg);
+                const jaTemC2Detalhado = (cid.c2Detalhado === true) && !temColunasC2;
+
+                // C2 só para quem está na lista "Desenvolvimento infantil" (0 a 4 anos), a única que traz visitas e vacinas
+                if (temColunasC2) {
+                  cid.indicadores['C2'] = true;
+                  if (temColunasC2) cid.c2Detalhado = true;
+                  const visInf = parseInt(reg["Quantidade de visitas domiciliares até os 24 meses de idade"]) || 0;
+                  const consInf = parseInt(reg["Quantidade de consultas até 24 meses"]) || 0;
+                  const av2 = avaliarVisitasC2(parseDataJS(reg["Data de nascimento"] || reg["DATA DE NASCIMENTO"] || ""), extrairDatas(reg["Data da primeira visita domiciliar"])[0] || null, extrairDatas(reg["Data da segunda visita domiciliar"])[0] || null, visInf);
+                  
+                  const penta = reg["Difteria, Tétano, Pertusis, Hepatite B, Haemophilus Influenza B"] || "";
+                  const polio = reg["Poliomielite"] || "";
+                  const semDadosVacina = !temColunasC2;
+                  const pentaPendente = !semDadosVacina && (penta === "" || penta === "-" || penta.toLowerCase().includes("não") || penta.toLowerCase().includes("sem registro") || penta.toLowerCase().includes("atrasad"));
+                  const polioPendente = !semDadosVacina && (polio === "" || polio === "-" || polio.toLowerCase().includes("não") || polio.toLowerCase().includes("sem registro") || polio.toLowerCase().includes("atrasad"));
+                  
+                  // Se houver qualquer vacina em falta OU se for criança sem colunas detalhadas de vacina preenchidas, puxamos alerta preventivo
+                  const temVacinasAtrasadas = semDadosVacina || pentaPendente || polioPendente || vacinasPendentesList.length > 0;
+
+                  cid.c2_visitas = visInf; 
+                  cid.c2_vacinasOk = !temVacinasAtrasadas;
+                  cid.c2Ok = (av2.ok && cid.c2_vacinasOk);
+                  cid.c2_tempo = { texto: av2.tempo, ok: av2.tempoOk };
+                  cid.c2_ok1 = av2.ok1; cid.c2_ok2 = av2.ok2;
+                  
+                  cid.pendencias = cid.pendencias.filter(p => !p.startsWith("C2:"));
+                  
+                  av2.pend.forEach(p => cid.pendencias.push("C2: " + p));
+                  
+                  const nAntesC2 = cid.pendencias.length;
+                  cid.c2_v1 = reg["Data da primeira visita domiciliar"] || ""; cid.c2_v2 = reg["Data da segunda visita domiciliar"] || "";
+                  if (pentaPendente) cid.pendencias.push(`C2: Vacina Penta 💉 (${penta || "Pendente"})`);
+                  if (polioPendente) cid.pendencias.push(`C2: Vacina Pólio 💉 (${polio || "Pendente"})`);
+                  
+                  if (vacinasPendentesList.length > 0) {
+                    vacinasPendentesList.slice(0, 3).forEach(v => {
+                      if (!cid.pendencias.some(p => p.includes(v))) {
+                        cid.pendencias.push(`C2: Vacina em atraso 💉 (${v})`);
+                      }
+                    });
+                  } else if (isCriancaRow && penta === "" && Object.keys(reg).some(k => k.toLowerCase().includes("vacina"))) {
+                    // Alerta preventivo rigoroso para pecar por excesso
+                    if (!cid.pendencias.some(p => p.includes("Verificar Caderneta"))) {
+                      cid.pendencias.push(`C2: Verificar caderneta de vacinação infantil 💉 (Pecando por excesso)`);
+                    }
+                  }
+                  cid.ex = cid.ex || {}; cid.ex.C2 = { okExtra: cid.c2_vacinasOk, pend: cid.pendencias.slice(nAntesC2) };
+                }
+
+                if (tema === "Gestação e puerpério") {
+                  cid.indicadores['C3'] = true;
+                  const visPn = parseInt(reg["Quantidade de visitas domiciliares no pré-natal"]) || 0;
+                  const visPuerp = parseInt(reg["Quantidade de visitas domiciliares no puerpério"]) || 0;
+                  const consPn = parseInt(reg["Quantidade de atendimentos no pré-natal"]) || 0;
+                  const cons12sem = parseInt(reg["Quantidade de atendimentos até 12 semanas no pré-natal"]) || 0;
+                  const odonto = parseInt(reg["Quantidade de atendimentos odontológicos no pré-natal"]) || 0;
+                  const dVis = parseInt(reg["Dias desde a última visita domiciliar"]);
+                  const mVis = parseInt(reg["Meses desde a última visita domiciliar"]);
+                  const temUlt = !isNaN(dVis) || !isNaN(mVis);
+                  const ultTxt = !temUlt ? '' : ((mVis || 0) > 0 ? `${mVis} mês(es)${(dVis || 0) ? ' e ' + dVis + ' dia(s)' : ''}` : `${dVis || 0} dia(s)`);
+                  const ultDias = temUlt ? (mVis || 0) * 30 + (dVis || 0) : null;
+                  cid.c3_tempo = { texto: temUlt ? `⏱ Última visita há ${ultTxt}` : '⏱ Sem visita domiciliar registrada', ok: (visPn >= 3 && visPuerp >= 1) || (ultDias !== null && ultDias < 30) };
+                  cid.c3_vis_pn = visPn; cid.c3_vis_puerp = visPuerp; cid.c3_dpp = extrairDatas(reg["DPP (DUM)"]).length ? reg["DPP (DUM)"] : (reg["DPP (ecografia obstétrica)"] || ""); cid.c3Ok = (visPn >= 3 && visPuerp >= 1 && consPn >= 6 && odonto >= 1 && cons12sem >= 1);
+                  cid.pendencias = cid.pendencias.filter(p => !p.startsWith("C3:"));
+                  if (visPn < 3) cid.pendencias.push(`C3: Visitar (pré-natal ${visPn}/3) · motivo: "Gestante"` + (temUlt ? ` · última há ${ultTxt}` : ''));
+                  if (visPuerp < 1) cid.pendencias.push('C3: Visitar a mãe e o bebê até o 7º dia após o parto · motivo: "Puérpera"');
+                  if (cons12sem === 0) cid.pendencias.push("C3: Busca Ativa - Captação precoce (<12 semanas)");
+                  if (consPn < 6) cid.pendencias.push(`C3: Busca Ativa - Consultas Pré-Natal (${consPn}/6)`);
+                  if (odonto < 1) cid.pendencias.push("C3: Busca Ativa - Avaliação Odontológica pendente");
+                  cid.ex = cid.ex || {}; cid.ex.C3 = { okExtra: (consPn >= 6 && odonto >= 1 && cons12sem >= 1), pend: cid.pendencias.filter(p => p.startsWith("C3: Busca Ativa")) };
+                  cid.c3_ult = temUlt ? ultTxt : ""; cid.c3_ultDias = ultDias; cid.c3_tempo_rep = cid.c3_tempo;
+                }
+                else if (tema === "Diabetes") {
+                  cid.indicadores['C4'] = true;
+                  const visDia = parseInt(reg["Quantidade de visitas domiciliares"]) || 0;
+                  const av4 = avaliarVisitas30(reg["Últimas visitas domiciliares"], visDia, "Pessoa com diabetes");
+                  const hg = reg["Hemoglobina glicada"] || "";
+                  const dtHg = reg["Data da última avaliação de hemoglobina glicada"] || "";
+                  const dtPes = reg["Data da avaliação dos pés"] || "";
+                  const hgOk = (hg !== "" && hg !== "-") || (dtHg !== "" && dtHg !== "-");
+                  const pesOk = (dtPes !== "" && dtPes !== "-");
+                  cid.c4_visitas = visDia; cid.c4_vis_txt = reg["Últimas visitas domiciliares"] || ""; cid.c4_tempo = { texto: av4.tempo, ok: av4.tempoOk }; cid.c4Ok = (av4.ok && hgOk && pesOk);
+                  cid.pendencias = cid.pendencias.filter(p => !p.startsWith("C4:"));
+                  if (av4.pend) cid.pendencias.push(`C4: ${av4.pend}`);
+                  if (!hgOk) cid.pendencias.push("C4: Busca Ativa - Exame de Hemoglobina Glicada");
+                  if (!pesOk) cid.pendencias.push("C4: Busca Ativa - Avaliação periódica dos pés");
+                  cid.ex = cid.ex || {}; cid.ex.C4 = { okExtra: (hgOk && pesOk), pend: cid.pendencias.filter(p => p.startsWith("C4: Busca Ativa")) };
+                }
+                else if (tema === "Hipertensão") {
+                  cid.indicadores['C5'] = true;
+                  const visHip = parseInt(reg["Quantidade de visitas domiciliares"]) || 0;
+                  const av5 = avaliarVisitas30(reg["Últimas visitas domiciliares"], visHip, "Pessoa com hipertensão");
+                  const paQtd = parseInt(reg["Quantidade de medições de pressão arterial"]) || 0;
+                  const consQtd = parseInt(reg["Quantidade de consultas"]) || 0;
+                  cid.c5_visitas = visHip; cid.c5_vis_txt = reg["Últimas visitas domiciliares"] || ""; cid.c5_tempo = { texto: av5.tempo, ok: av5.tempoOk }; cid.c5Ok = (av5.ok && paQtd >= 1 && consQtd >= 1);
+                  cid.pendencias = cid.pendencias.filter(p => !p.startsWith("C5:"));
+                  if (av5.pend) cid.pendencias.push(`C5: ${av5.pend}`);
+                  if (paQtd === 0) cid.pendencias.push("C5: Busca Ativa - Aferição de PA no semestre");
+                  if (consQtd === 0) cid.pendencias.push("C5: Busca Ativa - Agendar Consulta semestral");
+                  cid.ex = cid.ex || {}; cid.ex.C5 = { okExtra: (paQtd >= 1 && consQtd >= 1), pend: cid.pendencias.filter(p => p.startsWith("C5: Busca Ativa")) };
+                }
+                // ==========================================
+                // C6: PESSOA IDOSA E VACINA INFLUENZA
+                // ==========================================
+                else if (tema === "Pessoa idosa" || tema.toLowerCase().includes("idoso")) {
+                  cid.indicadores['C6'] = true;
+                  const visIdo = parseInt(reg["Quantidade de visitas domiciliares"]) || 0;
+                  const av6 = avaliarVisitas30(reg["Últimas visitas domiciliares"], visIdo, "Pessoa idosa");
+                  
+                  // Procura a coluna de influenza pelo nome (ignora a pentavalente, que cita "Haemophilus Influenza B")
+                  const chaveInf = Object.keys(reg).find(k => /influenza/i.test(k) && !/haemophilus|difteria/i.test(k));
+                  const inf = (chaveInf ? reg[chaveInf] : "") || "";
+                  const infPendente = (inf === "" || inf === "-" || inf.toLowerCase().includes("não") || inf.toLowerCase().includes("sem registro") || inf.toLowerCase().includes("atrasad"));
+                  
+                  const mMed = parseInt(reg["Meses desde o último atendimento médico"]) || 99;
+                  const mEnf = parseInt(reg["Meses desde o último atendimento de enfermagem"]) || 99;
+                  const consAnual = (mMed <= 12 || mEnf <= 12);
+                  
+                  cid.infC6 = { pend: infPendente, txt: inf };   // situação da influenza segundo a lista de pessoa idosa
+                  cid.c6_visitas = visIdo; 
+                  cid.c6_tempo = { texto: av6.tempo, ok: av6.tempoOk };
+                  cid.c6_vis_txt = reg["Últimas visitas domiciliares"] || "";
+                  cid.c6Ok = (av6.ok && !infPendente && consAnual);
+                  
+                  cid.pendencias = cid.pendencias.filter(p => !p.startsWith("C6:"));
+                  if (av6.pend) cid.pendencias.push(`C6: ${av6.pend}`);
+                  if (infPendente) cid.pendencias.push(`C6: Vacina Influenza 💉 (${inf || "Não realizada / Sem registro"})`);
+                  if (!consAnual) cid.pendencias.push("C6: Busca Ativa - Consulta anual pendente (>12 meses)");
+                  cid.ex = cid.ex || {}; cid.ex.C6 = { okExtra: (!infPendente && consAnual), pend: cid.pendencias.filter(p => p.startsWith("C6: Vacina") || p.startsWith("C6: Busca Ativa")) };
+                }
+                else if (tema === "Saúde da mulher") {
+                  // C7 (boas práticas da mulher). Faixas por procedimento (ver faixasC7, em vacinacao.js):
+                  // HPV 9-14a · consulta de saúde sexual e reprodutiva 14-69a · preventivo 25-64a · mamografia 50-69a.
+                  // Aqui guarda-se a situação de cada procedimento; montarC7 decide pela idade de hoje o que mostrar e cobrar.
+                  const hoje7 = new Date();
+                  const ultimaData = (pred) => {
+                    let ds = [];
+                    for (const k in reg) { if (pred(normalizarTexto(k))) ds = ds.concat(extrairDatas(reg[k])); }
+                    return ds.sort((a, b) => a - b).pop() || null;
+                  };
+                  const sit7 = (dt, meses) => ({ dt: dt ? fmtData(dt) : '', ok: !!dt && dt >= somarMeses(hoje7, -meses) });
+                  const dtColo = ultimaData(k => k.includes('colo de utero') && k.includes('data'));      // solicitado ou avaliado
+                  const dtMama = ultimaData(k => k.includes('mama') && k.includes('data'));               // solicitada, realizada ou avaliada
+                  const dtConsulta = ultimaData(k => k.includes('consulta de saude sexual'));
+                  const dosesHpv = ((reg["HPV"] || "").match(/vacina hpv/gi) || []).length;
+                  cid.c7_base = { v: 2, itens: { colo: sit7(dtColo, 36), consulta: sit7(dtConsulta, 12), mama: sit7(dtMama, 24) }, doses: dosesHpv };
+                  montarC7(cid);   // sem faixa válida (idade fora de 9-69, sem data de nascimento ou sexo masculino): não entra no C7
+                }
+              }
+            }
+
+            if (!arquivosProcessados[matchedId]) {
+              arquivosProcessados[matchedId] = { nome: file.name, count: countAtualizados, bf: countBolsaFamiliaFile };
+            } else {
+              arquivosProcessados[matchedId].count += countAtualizados;
+              arquivosProcessados[matchedId].bf += countBolsaFamiliaFile;
+            }
+
+            resolve();
+          };
+          processar();
+        });
+      }
+
+      const resumoVac = relatoriosVacinacao.length ? aplicarRelatoriosVacinacao(relatoriosVacinacao) : null;
+      if (!resumoVac) Object.values(BASE_DADOS.cidadaos).forEach(aplicarVacinacaoCidadao);
+      const resumoVacTxt = resumoVac ? `${resumoVac.pessoas} pessoa(s) com ${resumoVac.vacinas} vacina(s) em atraso` + (resumoVac.hpv ? `, ${resumoVac.hpv} com HPV atrasada` : '') + (resumoVac.prazoPessoas ? ` ${resumoVac.prazoPessoas} pessoa(s) com ${resumoVac.prazoVacinas} vacina(s) a aplicar no prazo.` : '') + (resumoVac.foraDaBase ? ` ${resumoVac.foraDaBase} fora da sua microárea/base` : '') + '.' + (resumoVac.meninas ? ` HPV avaliado em ${resumoVac.meninasHpv} de ${resumoVac.meninas} meninas de 9 a 14 anos.` + (resumoVac.meninasHpv < resumoVac.meninas ? ' Para o resto, exporte a busca ativa com o imunobiológico HPV.' : '') : '') : '';
+      try {
+        const ok = lerPlanilhasOk(); const agora = new Date().toLocaleDateString('pt-BR');
+        Object.entries(arquivosProcessados).forEach(([id, info]) => { if (id !== 'vacinacao') ok[id] = { nome: info.nome, count: info.count, bf: info.bf, data: agora }; });
+        localStorage.setItem(PLANILHAS_OK_KEY, JSON.stringify(ok));
+      } catch (e) {}
+      inicializarListaPlanilhas(resumoVacTxt);
+
+      if (perfilDetectado.nome || perfilDetectado.micro) {
+        const atual = lerPerfil();
+        localStorage.setItem('gestao_acs_perfil', JSON.stringify({
+          nome: perfilDetectado.nome || atual.nome || '',
+          micro: perfilDetectado.micro || atual.micro || ''
+        }));
+        renderPerfil();
+      }
+
+      Object.values(BASE_DADOS.cidadaos).forEach(aplicarVisitasApp);
+      try { const cmp = compararImportacao(fotoAntes, fotoIndicadores()); if (cmp) localStorage.setItem('guia_mudancas', JSON.stringify(cmp)); } catch (e) {}
+      try { localStorage.setItem('guia_ultima_importacao', JSON.stringify({ ts: Date.now(), arquivos: files.length })); } catch (e) {}
+      await salvarBaseLocal();
+      await registrarHistorico();
+      prog.style.color = "#10b981"; prog.innerHTML = "";
+      atualizarInterface();
+      if (!esperado) mostrarAvisoImportacao();   // importação geral: pop-up de faltantes e, ao dar OK, vai para Indicadores
+    }
+
+    // C1: cadastro individual atualizado (até 1 ano), domiciliar (se informado) e com CPF preenchido
+    function temCpf(c) { return ((c && c.cpf) || '').replace(/\D/g, '').length === 11; }
+    function avaliarC1(cid) {
+      const diasDe = (s) => { const d = s ? parseDataJS(s) : null; return (d && !isNaN(d.getTime())) ? Math.floor((new Date() - d) / 86400000) : null; };
+      const diasInd = diasDe(cid.dt_cadastral), diasDom = diasDe(cid.dt_cad_dom);
+      const indVenceu = diasInd === null || diasInd > 365;
+      const domVenceu = diasDom !== null && diasDom > 365;
+      const faltaCpf = !temCpf(cid);
+      cid.c1_ind_ok = !indVenceu; cid.c1_dom_ok = (diasDom === null) ? null : !domVenceu;
+      cid.c1_cpf_ok = !faltaCpf;
+      cid.c1Ok = !indVenceu && !domVenceu && !faltaCpf;
+      cid.pendencias = (cid.pendencias || []).filter(p => !p.startsWith("C1:"));
+      if (indVenceu) cid.pendencias.push(diasInd === null
+        ? "C1: Cadastro INDIVIDUAL sem data de atualização: refazer/atualizar o cadastro individual do cidadão (CDS ou PEC) e conferir o cadastro domiciliar da família"
+        : `C1: Cadastro INDIVIDUAL desatualizado (última atualização em ${cid.dt_cadastral}, há mais de 1 ano): atualizar o cadastro individual do cidadão e, na mesma visita, conferir o cadastro domiciliar da família`);
+      if (domVenceu) cid.pendencias.push(`C1: Cadastro DOMICILIAR desatualizado (última atualização em ${cid.dt_cad_dom}, há mais de 1 ano): atualizar o cadastro do domicílio/família`);
+      if (faltaCpf) cid.pendencias.push("C1: Falta CPF: cadastro sem CPF. Pedir o CPF ao cidadão e preencher no cadastro individual (CDS ou PEC)");
+    }
+
+    function atualizarInterface() {
+      const lista = Object.values(BASE_DADOS.cidadaos);
+      lista.forEach(c => { if (c.c1_cpf_ok !== temCpf(c)) avaliarC1(c); });   // dados salvos por versão anterior ainda não têm a checagem de CPF
+      // alerta de cadastros sem CPF (só a quantidade, nunca os números)
+      const semCpf = lista.filter(c => !temCpf(c)).length;
+      window.__semCpf = semCpf;
+      const totalBf = lista.filter(c => c.bolsaFamilia).length;
+      
+      window.__totalVinculados = lista.length;
+      atualizarSubtitulo();
+      if (typeof atualizarStatusCab === 'function') atualizarStatusCab();
+      document.getElementById('bf-tot').innerText = totalBf;
+
+      const selectRua = document.getElementById('filtroRua');
+      const ruaAtual = selectRua.value;
+      selectRua.innerHTML = '<option value="">Todas as ruas</option>';
+      Array.from(BASE_DADOS.ruas).sort().forEach(r => { selectRua.innerHTML += `<option value="${r}">${r}</option>`; });
+      selectRua.value = ruaAtual;
+
+      const stats = { C1: { tot: 0, ok: 0 }, C2: { tot: 0, ok: 0 }, C3: { tot: 0, ok: 0 }, C4: { tot: 0, ok: 0 }, C5: { tot: 0, ok: 0 }, C6: { tot: 0, ok: 0 }, C7: { tot: 0, ok: 0 } };
+
+      lista.forEach(c => {
+        ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'].forEach(ind => {
+          if (c.indicadores && c.indicadores[ind]) {
+            stats[ind].tot++;
+            if (c[`${ind.toLowerCase()}Ok`]) stats[ind].ok++;
+          }
+        });
+      });
+
+      ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'].forEach(ind => {
+        const t = stats[ind].tot;
+        const o = stats[ind].ok;
+        const pend = t - o;
+        const pctOk = t > 0 ? Math.min(Math.round((o / t) * 100), pend > 0 ? 99 : 100) : 100;
+        const idLow = ind.toLowerCase();
+
+        document.getElementById(`${idLow}-tot`).innerText = t;
+        if (t === 0) {
+          document.getElementById(`${idLow}-pct`).innerText = "0%";
+          document.getElementById(`${idLow}-pct`).className = "valor";
+          document.getElementById(`${idLow}-bar`).style.width = "0%";
+          document.getElementById(`${idLow}-pend`).className = "status-meta";
+          document.getElementById(`${idLow}-pend`).innerHTML = Object.keys(BASE_DADOS.cidadaos).length ? "Nenhum no grupo" : "Aguardando...";
+        } else if (pend === 0) {
+          document.getElementById(`${idLow}-pct`).innerText = "100%";
+          document.getElementById(`${idLow}-pct`).className = "valor ok";
+          document.getElementById(`${idLow}-bar`).style.width = "100%";
+          document.getElementById(`${idLow}-bar`).style.background = "#0284c7";
+          document.getElementById(`${idLow}-pend`).className = "status-meta ok-100";
+          document.getElementById(`${idLow}-pend`).innerHTML = "atualizados";
+        } else {
+          document.getElementById(`${idLow}-pct`).innerText = `${pctOk}%`;
+          document.getElementById(`${idLow}-pct`).className = "valor danger";
+          document.getElementById(`${idLow}-bar`).style.width = `${pctOk}%`;
+          document.getElementById(`${idLow}-bar`).style.background = "#0284c7";
+          document.getElementById(`${idLow}-pend`).className = "status-meta danger";
+          const sufixo = pend === 1 ? 'pendente' : 'pendentes';
+          document.getElementById(`${idLow}-pend`).innerHTML = `⚠️ ${pend} ${sufixo}`;
+        }
+      });
+
+      filtrarLista();
+      atualizarAlertas();
+      renderMudancas();
+      renderAlcance();
+      renderHistorico();
+      atualizarStatusBackup();
+    }
+
+    // ---------- C1: visão por família (mesma rua + mesmo número = mesma casa) ----------
+    let visaoLista = 'pessoa';
+    try { if (localStorage.getItem('guia_visao_c1') === 'familia') visaoLista = 'familia'; } catch (e) {}
+    function definirVisaoLista(v) { visaoLista = v; try { localStorage.setItem('guia_visao_c1', v); } catch (e) {} filtrarLista(); }
+    function chaveFamilia(c) {
+      const rua = normalizarTexto(c.rua || '').trim();
+      const num = normalizarTexto(c.numero || '').replace(/\s+/g, '');
+      if (!rua || !num || /^(s\/?n|sn|0|-|semnumero)$/.test(num)) return null;   // sem endereço completo: não agrupa
+      const comp = normalizarTexto(c.complemento || '').replace(/\s+/g, '');
+      return (comp && comp !== '-') ? rua + '|' + num + '|' + comp : rua + '|' + num;   // "23" e "23 A" são casas diferentes
+    }
+    // Número da casa como aparece na tela: "23" ou "23 A" (com o complemento, quando houver)
+    function numeroComComplemento(c) {
+      const n = (c.numero || '').trim(), comp = (c.complemento || '').trim();
+      return (comp && comp !== '-') ? (n + ' ' + comp).trim() : n;
+    }
+    const temPendC1 = (c) => c.c1Ok === false || (c.pendencias || []).some(p => p.startsWith('C1:'));
+
+    // Emojis de perfil de cada pessoa (um por indicador/condição), para ver de relance quem é quem na família
+    const EMOJIS_PERFIL = [['C2', '👶', 'Criança (C2)'], ['C3', '🤰', 'Gestante / puérpera (C3)'], ['C4', '🩸', 'Diabetes (C4)'], ['C5', '❤️', 'Hipertensão (C5)'], ['C6', '👴', 'Idoso (C6)'], ['C7', '👩', 'Mulher (C7)'], ['BF', '💰', 'Bolsa Família']];
+    function perfilPessoa(c, porIdade) {
+      const ind = c.indicadores || {}, anos = c.dt_nascimento ? idadeEmAnos(c.dt_nascimento) : null;
+      return EMOJIS_PERFIL.filter(([k]) => k === 'BF' ? c.bolsaFamilia
+        : (ind[k] || (porIdade && ((k === 'C2' && anos !== null && anos < 10) || (k === 'C6' && anos !== null && anos >= 60)))));
+    }
+    const htmlEmojisPerfil = (lista) => lista.map(([, em, nome]) => `<span class="cond-emoji" role="img" title="${nome}" aria-label="${nome}">${em}</span>`).join('');
+    const LEGENDA_PERFIL = `<div class="fam-legenda">${EMOJIS_PERFIL.map(([, em, nome]) => `<span>${em} ${nome.replace(/ \(.*$/, '')}</span>`).join('')}</div>`;
+
+    function htmlMoradorC1(chave, c) {
+      const idade = c.dt_nascimento ? calcularIdade(c.dt_nascimento) : (c.idade_txt || '');
+      const motivos = [];
+      if (c.c1_ind_ok === false) motivos.push('cadastro individual desatualizado');
+      if (c.c1_cpf_ok === false) motivos.push('falta CPF');
+      const tags = temPendC1(c) && motivos.length
+        ? motivos.map(m => `<span class="tag tag-danger">✗ ${m}</span>`).join('')
+        : (temPendC1(c) ? '<span class="tag tag-danger">✗ C1 pendente</span>' : '<span class="tag tag-ok">✓ C1</span>');
+      return `<div class="fam-mor"><div class="fam-mor-info"><div class="fam-mor-nome">${escHtml(c.nome)}${idade ? ` <small>${escHtml(idade)}</small>` : ''}</div><div class="fam-mor-emojis">${htmlEmojisPerfil(perfilPessoa(c, true))}</div><div>${tags}</div></div>
+        <button class="btn-ver-ficha" data-chave="${escHtml(chave)}">Ver ficha</button></div>`;
+    }
+
+    function renderPorFamilia(filtrados, content, contadorEl) {
+      const totalCasa = {};
+      Object.values(BASE_DADOS.cidadaos).forEach(c => { const k = chaveFamilia(c); if (k) totalCasa[k] = (totalCasa[k] || 0) + 1; });
+      const grupos = new Map(), semEnd = [];
+      filtrados.forEach(([chave, c]) => {
+        const k = chaveFamilia(c);
+        if (!k) { semEnd.push([chave, c]); return; }
+        if (!grupos.has(k)) grupos.set(k, { k, rua: c.rua, numero: numeroComComplemento(c), mem: [] });
+        grupos.get(k).mem.push([chave, c]);
+      });
+      const fams = [...grupos.values()].map(g => ({ ...g, pend: g.mem.filter(([, c]) => temPendC1(c)).length }));
+      // Ordem: ruas em ordem alfabética; dentro de cada rua, do menor para o maior número da residência
+      const chaveRua = (g) => normalizarTexto(g.rua || '').trim();
+      fams.sort((a, b) => chaveRua(a).localeCompare(chaveRua(b), 'pt-BR', { sensitivity: 'base' }) || String(a.numero).localeCompare(String(b.numero), 'pt-BR', { numeric: true, sensitivity: 'base' }));
+      contadorEl.innerText = `Exibindo ${fams.length} ${fams.length === 1 ? 'família' : 'famílias'} · ${filtrados.length - semEnd.length} pessoa(s)` + (semEnd.length ? ` · ${semEnd.length} sem endereço completo` : '');
+      let html = fams.length ? LEGENDA_PERFIL : '', ruaAtual = null;
+      const famsPorRua = {}; fams.forEach(g => { const r = chaveRua(g); famsPorRua[r] = (famsPorRua[r] || 0) + 1; });
+      fams.forEach(g => {
+        if (chaveRua(g) !== ruaAtual) {
+          ruaAtual = chaveRua(g);
+          html += `<div class="fam-rua">📍 ${escHtml(g.rua)} <small>· ${famsPorRua[ruaAtual]} ${famsPorRua[ruaAtual] === 1 ? 'família' : 'famílias'}</small></div>`;
+        }
+        g.mem.sort((x, y) => (y[1].c1Ok === false) - (x[1].c1Ok === false) || (x[1].nome || '').localeCompare(y[1].nome || '', 'pt-BR', { sensitivity: 'base' }));
+        const dom = g.mem.map(([, c]) => c).filter(c => c.dt_cad_dom);
+        const domVenceu = dom.some(c => c.c1_dom_ok === false);
+        const domTxt = !dom.length ? '' : (domVenceu
+          ? `<div class="fam-dom">Cadastro domiciliar: <span class="tag tag-danger">✗ desatualizado (última atualização em ${escHtml(dom.find(c => c.c1_dom_ok === false).dt_cad_dom)})</span></div>`
+          : `<div class="fam-dom">Cadastro domiciliar: <span class="tag tag-ok">✓ em dia</span></div>`);
+        const nTot = totalCasa[g.k] || g.mem.length;
+        const resumo = g.pend ? `<b class="fam-pend">${g.pend} com pendência no C1</b>` : '<b class="fam-okt">tudo em dia ✓</b>';
+        html += `<div class="fam-card ${g.pend || domVenceu ? '' : 'fam-ok'}"><h5>🏠 Nº ${escHtml(g.numero)} <small class="fam-h5-rua">${escHtml(g.rua)}</small></h5>
+          <div class="fam-sub">${nTot} ${nTot === 1 ? 'morador' : 'moradores'} · ${resumo}</div>${domTxt}
+          ${g.mem.map(([ch, c]) => htmlMoradorC1(ch, c)).join('')}</div>`;
+      });
+      if (semEnd.length) {
+        semEnd.sort((x, y) => (x[1].nome || '').localeCompare(y[1].nome || '', 'pt-BR', { sensitivity: 'base' }));
+        html += `<div class="fam-card fam-sem"><h5>📍 Sem rua ou número cadastrados</h5><div class="fam-sub">Não dá para saber a família. Confira o endereço no cadastro.</div>
+          ${semEnd.map(([ch, c]) => htmlMoradorC1(ch, c)).join('')}</div>`;
+      }
+      content.innerHTML = html;
+    }
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('.btn-ver-ficha');
+      if (!b) return;
+      const c = BASE_DADOS.cidadaos[b.getAttribute('data-chave')];
+      if (!c) return;
+      visaoLista = 'pessoa';   // só para abrir a ficha; a escolha salva do usuário não muda
+      document.getElementById('campoBusca').value = c.nome;
+      filtrarLista();
+      window.scrollTo(0, 0);
+    });
+
+    let filtroSoSemCpf = false;
+    function alternarSoSemCpf() { filtroSoSemCpf = !filtroSoSemCpf; filtrarLista(); }
+
+    function filtrarLista() {
+      // busca preenchida = todos os cards estão filtrando por ela: destaca o campo em vermelho para não passar despercebido
+      { const cb = document.getElementById('campoBusca'); if (cb) { const ativa = cb.value.trim() !== ''; cb.classList.toggle('busca-ativa', ativa); cb.title = ativa ? 'Há um texto na busca filtrando a lista. Apague para ver todos.' : ''; } }
+      // faixa de alerta do C1: quantos cadastros estão sem CPF (toque para ver só eles)
+      const semCpf = window.__semCpf || 0;
+      if (filtroIndicadorAtual !== 'C1' || !semCpf) filtroSoSemCpf = false;
+      const elAlertaCpf = document.getElementById('alertaCpfLista');
+      if (elAlertaCpf) {
+        const mostrar = filtroIndicadorAtual === 'C1' && semCpf > 0;
+        elAlertaCpf.style.display = mostrar ? '' : 'none';
+        elAlertaCpf.innerHTML = mostrar
+          ? `🪪 Falta CPF: ${semCpf} ${semCpf === 1 ? 'cadastro' : 'cadastros'} · ${filtroSoSemCpf ? 'mostrando só eles (toque para ver todos)' : 'toque para ver só eles'}`
+          : '';
+      }
+      // seletor "Por pessoa / Por família": só aparece no C1
+      const verFamilia = filtroIndicadorAtual === 'C1' && visaoLista === 'familia';
+      const elSel = document.getElementById('seletorVisao');
+      if (elSel) {
+        elSel.style.display = filtroIndicadorAtual === 'C1' ? '' : 'none';
+        document.getElementById('visPessoa').className = 'seg-btn' + (verFamilia ? '' : ' active');
+        document.getElementById('visFamilia').className = 'seg-btn' + (verFamilia ? ' active' : '');
+      }
+      const termoRaw = document.getElementById('campoBusca').value.trim();
+      const ruaSel = document.getElementById('filtroRua').value;
+      const situacaoSel = document.getElementById('filtroPendencia').value;
+
+      const content = document.getElementById('listaUtentes');
+      const contadorEl = document.getElementById('contadorResultados');
+      content.innerHTML = "";
+
+      const temTermoBusca = termoRaw.length > 0;
+      const termoNorm = normalizarTexto(termoRaw);
+      const palavrasBusca = termoNorm.split(/\s+/).filter(p => p.length > 0);
+      const termoDigitos = termoRaw.replace(/\D/g, "");
+
+      const filtrados = Object.entries(BASE_DADOS.cidadaos).filter(([chave, c]) => {
+        if (filtroIndicadorAtual === 'BF') {
+          if (!c.bolsaFamilia) return false;
+        } else if (filtroIndicadorAtual !== 'todos') {
+          if (filtroIndicadorAtual !== 'C1' && (!c.indicadores || !c.indicadores[filtroIndicadorAtual])) return false;
+        }
+
+        if (temTermoBusca) {
+          const nomeNorm = normalizarTexto(c.nome);
+          const matchNome = palavrasBusca.length > 0 && palavrasBusca.every(p => nomeNorm.includes(p));
+          const cpfDigitos = (c.cpf || "").replace(/\D/g, "");
+          const matchDoc = termoDigitos.length >= 2 && cpfDigitos.includes(termoDigitos);
+          const matchNum = c.numero && (normalizarTexto(c.numero) === termoNorm || normalizarTexto(numeroComComplemento(c)) === termoNorm);
+
+          if (!matchNome && !matchDoc && !matchNum) return false;
+        }
+
+        if (ruaSel && c.rua !== ruaSel) return false;
+        if (filtroSoSemCpf && temCpf(c)) return false;
+
+        if (!temTermoBusca && filtroIndicadorAtual !== 'BF') {
+          // A pendência considerada é a do indicador selecionado (C1 = só cadastro individual)
+          const pends = c.pendencias || [];
+          const temPendencias = (filtroIndicadorAtual === 'todos')
+            ? pends.length > 0
+            : (filtroIndicadorAtual === 'C1' ? (c.c1Ok === false || pends.some(p => p.startsWith('C1:'))) : pends.some(p => p.startsWith(filtroIndicadorAtual + ':')));
+          if (situacaoSel === 'pendentes' && !temPendencias) return false;
+          if (situacaoSel === 'emdia' && temPendencias) return false;
+        }
+
+        return true;
+      });
+
+      filtrados.sort((x, y) => (x[1].nome || '').localeCompare(y[1].nome || '', 'pt-BR', { sensitivity: 'base' }));
+
+      contadorEl.innerText = `Exibindo ${filtrados.length} cidadão(s)`;
+
+      if (!filtrados.length) {
+        content.innerHTML = '<p style="text-align:center; padding: 24px; color: var(--text-muted); font-size: 0.88rem;">Nenhum cidadão localizado para este filtro.</p>';
+        return;
+      }
+
+      if (verFamilia) { renderPorFamilia(filtrados, content, contadorEl); return; }
+
+      let htmlLista = '';
+      filtrados.forEach(([chave, c]) => {
+        // Cada indicador vira um bloco: etiqueta verde (meta atingida) ou vermelha (não atendida)
+        // e, logo abaixo, o que fazer para atingir a meta.
+        const rotulos = {
+          C1: c.c1Ok === false
+            ? ((c.c1_ind_ok === false || c.c1_dom_ok === false)
+                ? ('C1: Cadastro Individual desatualizado' + (c.c1_dom_ok === false ? ' e domiciliar' : '') + (c.c1_cpf_ok === false ? ' · falta CPF' : ''))
+                : 'C1: Cadastro Individual · falta CPF')
+            : 'C1: Cadastro Individual',
+          C2: 'C2: Criança' + (c.c2_vacinasOk ? ' · 💉 vacinas em dia' : ''),
+          C3: 'C3: Gestante',
+          C4: 'C4: Diabetes',
+          C5: 'C5: Hipertensão',
+          C6: 'C6: Idoso',
+          C7: 'C7: Mulher'
+        };
+        const tempos = { C2: c.c2_tempo, C3: c.c3_tempo, C4: c.c4_tempo, C5: c.c5_tempo, C6: c.c6_tempo, C7: c.c7_tempo };
+        let blocosOkHtml = '';
+        let blocosPendHtml = '';
+        let algumaPendente = false;
+        ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'].forEach(ind => {
+          if (!c.indicadores || !c.indicadores[ind]) return;
+          if (situacaoSel === 'pendentes' && /^C[1-7]$/.test(filtroIndicadorAtual) && ind !== filtroIndicadorAtual) return;   // em "somente pendências" mostra só o indicador escolhido
+          const acoes = (c.pendencias || [])
+            .filter(p => p.startsWith(ind + ':'))
+            .map(p => p.substring(ind.length + 1).trim());
+          const atingida = (c[ind.toLowerCase() + 'Ok'] === true) && acoes.length === 0;
+          if (!atingida) algumaPendente = true;
+          const acoesHtml = acoes.length
+            ? `<div class="acoes-meta"><div class="acoes-titulo">👉 O que fazer para atingir a meta:</div>` +
+              acoes.map(a => `<div class="acao-item">${a}</div>`).join('') + `</div>`
+            : '';
+          const blocoHtml = `<div class="bloco-meta">
+              <span class="tag ${atingida ? 'tag-ok' : 'tag-danger'}">${atingida ? '✓' : '✗'} ${rotulos[ind]}</span>${(tempos[ind] && tempos[ind].texto) ? `<span class="tag tag-tempo ${tempos[ind].ok ? 'tempo-ok' : 'tempo-atencao'}">${tempos[ind].texto}</span>` : ''}${ind === 'C7' ? badgeHpv(c) : ''}
+              ${acoesHtml}
+            </div>`;
+          if (atingida) blocosOkHtml += blocoHtml; else blocosPendHtml += blocoHtml;
+        });
+
+        // Ordem: metas atingidas (verde), Bolsa Família e, por último, as pendências (vermelho)
+        let tagsHtml = blocosOkHtml;
+        tagsHtml += blocosPendHtml;
+        { const inf = badgeInfluenza(c); if (inf) tagsHtml += `<div class="bloco-meta">${inf}</div>`; }   // influenza (idosos), no mesmo campo das etiquetas C1 a C7
+        const pendenciasHtml = '';
+
+        const urlWa = linkWhatsApp(c.telefone);
+        const linkTel = c.telefone ? (urlWa ? `<span class="telefone"> | <a href="${urlWa}" target="_blank" rel="noopener">${htmlIconeMsg()} ${c.telefone}</a></span>` : `<span class="telefone"> | 📞 ${c.telefone}</span>`) : '';
+        const valAnotacao = c.anotacao || '';
+        const visApp = (c.visitasApp || []).map((v, i) => `<div class="visita-app-linha">📝 Visita registrada no app: <b>${v.d}</b> · ${v.inds.map(k => (MOTIVOS_VISITA[k] || k).replace(/ \(.*$/, '')).join(', ')} <button class="btn-rm-visita" data-chave="${escHtml(chave)}" data-i="${i}" aria-label="Remover visita">✕</button></div>`).join('');
+        const retsHtml = (c.retornos || []).map((r, i) => r.feito ? '' : `<div class="retorno-linha">📅 Retorno em <b>${dataBR(r.d)}</b>${r.nota ? ' · ' + escHtml(r.nota) : ''}<span class="acoes-ret"><button class="btn-ret-feito" data-chave="${escHtml(chave)}" data-i="${i}">✓ Feito</button><button class="btn-ret-rm" data-chave="${escHtml(chave)}" data-i="${i}" aria-label="Remover retorno">✕</button></span></div>`).join('');
+        const vacHtml = (c.vacAtraso && c.vacAtraso.length) ? `<div class="vac-bloco"><b>💉 ${c.vacAtraso.length} vacina(s) em atraso</b><div>${c.vacAtraso.map(x => escHtml(textoDoseVacina(x))).join(' · ')}</div><small>Relatório de ${escHtml(c.vacData || '')}</small></div>` : '';
+        const visitaHtml = vacHtml + (podeRegistrarVisita(c) ? `${visApp}<button class="btn-visita" data-chave="${escHtml(chave)}">📝 Registrar visita</button>` : '') + retsHtml + `<button class="btn-retorno" data-chave="${escHtml(chave)}">📅 Agendar retorno</button>`;
+        const anotacaoHtml = `<textarea class="area-anotacao" placeholder="✍️ Anotações do ACS..." onchange="salvarAnotacao('${chave}', this.value)">${valAnotacao}</textarea>`;
+
+        const temPend = algumaPendente;
+        const idadeCalc = c.dt_nascimento ? calcularIdade(c.dt_nascimento) : (c.idade_txt || '');
+        const idadeBadge = idadeCalc ? `<span class="idade">${idadeCalc}</span>` : '';
+        const bfBadge = c.bolsaFamilia ? `<span class="tag tag-bf">💰 Bolsa Família</span>` : '';
+        // Etiquetas de perfil para quem está fora das listas de indicadores do PEC (sem meta, só para identificar)
+        const anosC = c.dt_nascimento ? idadeEmAnos(c.dt_nascimento) : null;
+        let perfilBadge = '';
+        if (anosC !== null && anosC < 10 && !(c.indicadores && c.indicadores['C2'])) perfilBadge += '<span class="tag tag-info">👶 Criança · fora do C2</span>';
+        if (anosC !== null && anosC >= 60 && !(c.indicadores && c.indicadores['C6'])) perfilBadge += '<span class="tag tag-info">🧓 Idoso · fora do C6</span>';
+        // Condições do cidadão (emojis logo após a idade): diabetes, hipertensão, gestação/puerpério
+        const indC = c.indicadores || {};
+        const condicoesBadge = htmlEmojisPerfil(perfilPessoa(c, false).filter(([k]) => k !== 'BF'));
+        const linhaInfoHtml = (idadeBadge || condicoesBadge || bfBadge || perfilBadge) ? `<div class="linha-info">${idadeBadge}${condicoesBadge}${bfBadge}${perfilBadge}</div>` : '';
+        htmlLista += `
+          <div class="item-cidadao ${temPend ? 'tem-pend' : 'em-dia'}">
+            <div class="topo">
+              <div class="nome">${c.nome}</div>
+            </div>
+            ${linhaInfoHtml}
+            <div class="endereco">📍 ${c.rua || 'Sem rua cadastrada'}, nº ${numeroComComplemento(c) || 'S/N'}${linkTel}</div>
+            ${htmlMedidas(c)}
+            <div>${tagsHtml}</div>
+            ${pendenciasHtml}
+            <button class="btn-prontuario" data-chave="${escHtml(chave)}">📋 Prontuário</button>
+            ${visitaHtml}
+            ${anotacaoHtml}
+          </div>
+        `;
+      });
+      content.innerHTML = htmlLista;
+    }
