@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <script>try { var _t = localStorage.getItem('guia_tema') || 'claro', _f = localStorage.getItem('guia_fonte') || '0', _r = document.documentElement.classList;
+    if (_t === 'escuro') _r.add('escuro'); else _r.remove('escuro');
+    if (_f !== '0') _r.add('fonte' + _f); } catch (e) {}</script>
+  <script>try { var __t = Number(localStorage.getItem('guia_destravado')); if (localStorage.getItem('guia_senha') && window.isSecureContext && !(__t > 0 && Date.now() - __t < 21600000 && __t <= Date.now() + 60000)) document.documentElement.classList.add('travado'); } catch (e) {}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0369a1">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icone-192.png">
+  <title>Guia de Visitas TACS</title>
+  
+  <!-- IMPORTAÇÃO DA FONTE INTER -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <!-- ANIMAÇÃO DE ABERTURA: só CSS (some sozinha); o script abaixo apenas remove o elemento -->
+  <div id="splash" aria-hidden="true">
+    <div class="splash-conteudo">
+      <div class="splash-box">
+        <svg class="splash-orbita o1" viewBox="0 0 200 200" fill="none" stroke-linecap="round"><circle cx="100" cy="100" r="76" stroke="#fbbf24" stroke-width="4" stroke-dasharray="150 330"/><circle cx="100" cy="24" r="6" fill="#fbbf24"/></svg>
+        <svg class="splash-orbita o2" viewBox="0 0 200 200" fill="none" stroke-linecap="round"><circle cx="100" cy="100" r="92" stroke="#5eead4" stroke-width="4" stroke-dasharray="110 470"/><circle cx="100" cy="192" r="6" fill="#5eead4"/></svg>
+        <img class="splash-icone" src="./icone-192.png" alt="" width="120" height="120" onload="this.parentNode.classList.add('tem-icone')">
+        <svg class="splash-logo" viewBox="0 0 120 120" width="120" height="120" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <circle class="sp-anel" cx="60" cy="60" r="54" pathLength="100"/>
+          <path class="sp-casa" d="M30 62 L60 36 L90 62 M38 56 V88 H82 V56" pathLength="100"/>
+          <path class="sp-cruz" d="M60 58 V76 M51 67 H69" pathLength="100"/>
+        </svg>
+      </div>
+      <div class="splash-titulo">Guia de Visitas TACS</div>
+      <div class="splash-sub">Cuidando de perto, família por família</div>
+    </div>
+  </div>
+  <script>setTimeout(function () { var e = document.getElementById('splash'); if (e) e.remove(); }, 3200); document.getElementById('splash').addEventListener('click', function () { this.remove(); });</script>
+
+  <div id="telaBloqueio">
+    <div class="bloq-caixa">
+      <img src="./icone-192.png" alt="">
+      <h2>Guia de Visitas TACS</h2>
+      <p>Digite a senha para abrir o app.</p>
+      <input type="password" id="bloqSenha" class="campo-texto" autocomplete="current-password" placeholder="Senha" onkeydown="if(event.key==='Enter') destravarApp()">
+      <div id="bloqAviso"></div>
+      <button class="btn" onclick="destravarApp()">🔓 Entrar</button>
+      <button class="btn" id="bloqBio" style="display:none; margin-top:8px; background:#14532d;" onclick="destravarComBiometria()">👆 Entrar com biometria</button>
+      <button class="bloq-link" onclick="esqueciSenha()">Esqueci a senha</button>
+      <div class="app-versao bloq-versao" aria-label="Versão do sistema"></div>
+    </div>
+  </div>
+
+  <header>
+    <h1 class="so-leitor">Guia de Visitas TACS</h1>
+    <div class="cab-linha">
+      <div class="cab-texto">
+        <button type="button" class="cab-saudacao" id="saudacao" onclick="abrirModalPerfil()" aria-label="Editar nome e microárea">Guia de Visitas TACS</button>
+        <p id="subtitulo">Aguardando dados...</p>
+      </div>
+      <button type="button" class="cab-status" id="cabStatus" onclick="alternarPopStatus(event)" aria-label="Estado dos dados salvos" aria-expanded="false">
+        <span class="cs-ponto" id="csPonto"></span>
+        <span class="cs-txt"><b id="csL1">Sem dados</b><small id="csL2">importe as planilhas</small></span>
+      </button>
+    </div>
+    <div class="pop-status" id="popStatus" hidden></div>
+  </header>
+
+  <div class="container">
+    <button id="btnInstalarApp" class="btn btn-install" onclick="acionarInstalacaoPWA()">
+      📲 Instalar Aplicativo no Celular
+    </button>
+
+    <div id="view-dashboard" style="display: none;">
+      <div id="painel-cards">
+      <div id="avisoBackup" class="card aviso-backup" style="display:none;">
+        <div id="avisoBackupTexto"></div>
+        <div class="aviso-backup-botoes"><button class="btn-nao-mini" onclick="adiarAvisoBackup()">Depois</button><button class="btn-sim-mini" onclick="abrirModalBackup()">💾 Fazer backup agora</button></div>
+      </div>
+      <section id="painelAlcance" class="card alcance" style="display:none;" aria-label="Alcance total das metas"></section>
+      <div class="grid-indicadores">
+
+        <div class="card-meta active" id="card-c1" onclick="abrirIndicador('C1')">
+          <div class="header-card">
+            <h4><span class="icon-card">📋</span> C1 · Cadastro</h4>
+            <span class="badge-meta" id="c1-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c1-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c1-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c1-bar"></div></div>
+          <div class="regra-acs">Meta: Cadastro individual atualizado (até 1 ano) e com CPF</div>
+        </div>
+
+        <div class="card-meta" id="card-c2" onclick="abrirIndicador('C2')">
+          <div class="header-card">
+            <h4><span class="icon-card">👶</span> C2 · Criança</h4>
+            <span class="badge-meta" id="c2-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c2-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c2-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c2-bar"></div></div>
+          <div class="regra-acs">Meta: 2 Visitas (até 30 dias e 31 dias–6 meses) + Vacinas + Pueric. (0 a 4 anos)</div>
+        </div>
+
+        <div class="card-meta" id="card-c3" onclick="abrirIndicador('C3')">
+          <div class="header-card">
+            <h4><span class="icon-card">🤰</span> C3 · Pré-Natal</h4>
+            <span class="badge-meta" id="c3-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c3-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c3-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c3-bar"></div></div>
+          <div class="regra-acs">Meta: Captar a gestante antes de 3 meses + 3 visitas PN + visita ao puerpério até o 7º dia + consulta na UBS até 42 dias</div>
+        </div>
+
+        <div class="card-meta" id="card-c4" onclick="abrirIndicador('C4')">
+          <div class="header-card">
+            <h4><span class="icon-card">🩸</span> C4 · Diabetes</h4>
+            <span class="badge-meta" id="c4-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c4-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c4-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c4-bar"></div></div>
+          <div class="regra-acs">Meta: 2 Visitas (30+ dias entre elas) + HbA1c + Pés</div>
+        </div>
+
+        <div class="card-meta" id="card-c5" onclick="abrirIndicador('C5')">
+          <div class="header-card">
+            <h4><span class="icon-card">❤️</span> C5 · Hipertensão</h4>
+            <span class="badge-meta" id="c5-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c5-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c5-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c5-bar"></div></div>
+          <div class="regra-acs">Meta: 2 Visitas (30+ dias entre elas) + Aferição PA</div>
+        </div>
+
+        <div class="card-meta" id="card-c6" onclick="abrirIndicador('C6')">
+          <div class="header-card">
+            <h4><span class="icon-card">👴</span> C6 · Idosos</h4>
+            <span class="badge-meta" id="c6-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c6-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c6-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c6-bar"></div></div>
+          <div class="regra-acs">Meta: 2 Visitas (30+ dias entre elas) + Consulta no ano + Vacina Influenza (12 meses)</div>
+        </div>
+
+        <div class="card-meta" id="card-c7" onclick="abrirIndicador('C7')">
+          <div class="header-card">
+            <h4><span class="icon-card">👩</span> C7 · Mulheres</h4>
+            <span class="badge-meta" id="c7-tot">0</span>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="c7-pct">0%</div>
+            <div class="rodape-card"><span class="status-meta" id="c7-pend">Aguardando...</span></div>
+          </div>
+          <div class="barra-fundo"><div class="barra-progresso" id="c7-bar"></div></div>
+          <div class="regra-acs">Meta: Preventivo 25-64a · HPV 9-14a · Consulta 14-69a · Mama 50-69a</div>
+        </div>
+
+        <div class="card-meta" id="card-bf" onclick="abrirIndicador('BF')">
+          <div class="header-card">
+            <h4 style="color: #ca8a04;"><span class="icon-card">💰</span> Bolsa Família</h4>
+          </div>
+          <div class="linha-valor">
+            <div class="valor" id="bf-tot">0</div>
+            <div class="rodape-card"><span class="status-meta">Pessoas Beneficiárias</span></div>
+          </div>
+          <div class="regra-acs" style="border-top-color: rgba(202, 138, 4, 0.2); color: #a16207;">Acompanhamento Social</div>
+        </div>
+
+      </div>
+      <details id="blocoMudancas" class="card mud-bloco" style="display:none;"></details>
+      <details id="blocoHistorico" class="card mud-bloco" style="display:none;"></details>
+      </div>
+
+    </div>
+
+    <!-- Tela: Cidadãos -->
+    <div id="view-cidadaos" style="display: none;">
+      <div id="painel-lista">
+      <div class="barra-voltar">
+        <button class="btn-voltar" onclick="alternarAba('dashboard')">← Indicadores</button>
+        <span class="chip-ativo" id="chipAtivo" style="--accent:var(--c1)">📋 C1: Cadastros</span>
+      </div>
+
+      <div class="chips-indicadores">
+        <button class="chip active" id="chip-C1" onclick="selecionarFiltroIndicador('C1')">📋 C1: Cadastros</button>
+        <button class="chip" id="chip-C2" onclick="selecionarFiltroIndicador('C2')">👶 C2: Crianças</button>
+        <button class="chip" id="chip-C3" onclick="selecionarFiltroIndicador('C3')">🤰 C3: Gestantes</button>
+        <button class="chip" id="chip-C4" onclick="selecionarFiltroIndicador('C4')">🩸 C4: Diabéticos</button>
+        <button class="chip" id="chip-C5" onclick="selecionarFiltroIndicador('C5')">❤️ C5: Hipertensos</button>
+        <button class="chip" id="chip-C6" onclick="selecionarFiltroIndicador('C6')">👴 C6: Idosos</button>
+        <button class="chip" id="chip-C7" onclick="selecionarFiltroIndicador('C7')">👩 C7: Mulheres</button>
+        <button class="chip" id="chip-BF" onclick="selecionarFiltroIndicador('BF')">💰 Bolsa Família</button>
+      </div>
+
+      <div id="alertaCpfLista" class="alerta-cpf alerta-cpf-lista" style="display:none;" role="button" tabindex="0" onclick="alternarSoSemCpf()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();alternarSoSemCpf();}"></div>
+
+      <div class="seg" id="seletorVisao" role="tablist" aria-label="Forma de exibir" style="display:none;">
+        <button class="seg-btn active" id="visPessoa" onclick="definirVisaoLista('pessoa')">👤 Por pessoa</button>
+        <button class="seg-btn" id="visFamilia" onclick="definirVisaoLista('familia')">🏠 Por família</button>
+      </div>
+
+      <div class="barra-filtros">
+        <input type="text" id="campoBusca" class="search-bar" placeholder="🔍 Buscar por nome, CPF ou número da casa..." oninput="filtrarLista()">
+        <div class="filtros-duplos">
+          <select id="filtroRua" class="filter-select" onchange="filtrarLista()">
+            <option value="">Todas as ruas</option>
+          </select>
+          <select id="filtroPendencia" class="filter-select" onchange="filtrarLista()">
+            <option value="todos" selected>Exibir Todos</option>
+            <option value="pendentes">⚠️ Apenas Pendências</option>
+            <option value="emdia">✓ Em Dia</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="contador-resultados" id="contadorResultados"></div>
+      <div id="listaUtentes"></div>
+      </div>
+    </div>
+
+    <!-- Tela 2: Ações do Dia -->
+    <div id="view-alertas">
+      <section class="hero-hoje" aria-live="polite">
+        <div class="hero-data" id="heroData"></div>
+        <div class="hero-titulo" id="heroTitulo">Importe as planilhas para começar</div>
+        <div class="hero-kpis">
+          <div class="hero-kpi"><b id="kpiHoje">0</b><span>hoje</span></div>
+          <div class="hero-kpi"><b id="kpiSemana">0</b><span>próximos 7 dias</span></div>
+          <div class="hero-kpi"><b id="kpiRet">0</b><span>retorno atrasado</span></div>
+        </div>
+      </section>
+      <div class="faixa-ind" id="faixaInd"></div>
+      <section class="card-acoes" aria-label="Ações e Prazos do Dia">
+        <div class="ca-titulo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg>
+          <h2>Ações e Prazos do Dia</h2>
+        </div>
+        <p class="ca-sub">Prazos de visitas a vencer, mudanças de faixas etárias e retornos agendados.</p>
+        <div class="seg" id="alHoriz" role="tablist" aria-label="Período">
+          <button class="seg-btn active" id="chipAl7" onclick="definirHorizonteAlertas(7)">Próximos 7 dias</button>
+          <button class="seg-btn" id="chipAl15" onclick="definirHorizonteAlertas(15)">Próximos 15 dias</button>
+        </div>
+        <div class="seg seg-modo" id="alModo" role="tablist" aria-label="Visualização">
+          <button class="seg-btn" id="chipModoUrg" onclick="definirModoAlertas('urgencia')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span>Por Urgência <b id="cntUrg"></b></span>
+          </button>
+          <button class="seg-btn" id="chipModoRua" onclick="definirModoAlertas('rua')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 3 10.5l7.5 3L13.5 21z"/></svg>
+            <span>Roteiro por Rua</span>
+          </button>
+          <button class="seg-btn" id="chipModoAniv" onclick="definirModoAlertas('aniv')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21h16v-7H4zM12 14V8M12 8c-1.2 0-2-.8-2-2 0-1 1-2 2-3 1 1 2 2 2 3 0 1.2-.8 2-2 2zM4 17.5c2 1.5 4 1.5 8 0s6-1.5 8 0"/></svg>
+            <span>Aniversários <b id="cntAniv"></b></span>
+          </button>
+        </div>
+        <div class="seg seg-modo" id="alAgenda" role="tablist" aria-label="Agenda de metas">
+          <button class="seg-btn" id="chipModoPrazo" onclick="definirModoAlertas('prazo')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <span>Agenda por prazo</span>
+          </button>
+          <button class="seg-btn" id="chipModoSemana" onclick="definirModoAlertas('semana')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
+            <span>Agenda da semana</span>
+          </button>
+        </div>
+      </section>
+      <details class="opcoes-hoje">
+        <summary>Lembretes no celular</summary>
+        <div class="opcoes-corpo">
+          <button class="btn" id="btnLembretes" onclick="ativarLembretes()">🔔 Ativar lembretes no celular</button>
+          <div id="statusLembretes" class="al-status"></div>
+        </div>
+      </details>
+      <div id="listaAlertas"></div>
+      <div class="app-versao" aria-label="Versão do sistema"></div>
+    </div>
+
+    <!-- Tela 3: Importar e Sincronizar -->
+    <div id="view-upload" style="display: none;">
+      
+      <div class="card" style="padding: 20px 16px;">
+        <h3 style="font-size: 1.05rem; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">📦 Importar todas as planilhas</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 10px; line-height: 1.4;">Selecione <strong>todas de uma vez</strong>; o app reconhece cada uma.</p>
+
+        <div class="warning-box">
+          ⚠️ Importe <strong>as 13 planilhas do mesmo dia</strong> (as 9 de sempre + 4 da <b>busca ativa de vacinação</b>: Atrasada e No prazo, de 0 a 9 anos e de 10 a 14 anos). Faltando alguma, o grupo dela fica desatualizado.
+        </div>
+
+        <button class="btn-selecionar" onclick="const i = document.getElementById('inputArquivosCSV'); i.value = ''; i.click()">
+          📁 Selecionar planilhas
+        </button>
+        <input type="file" id="inputArquivosCSV" multiple accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onchange="processarFicheiros(this.files)" style="display: none;">
+        
+        <div id="progressoUpload" style="margin-top: 12px; font-size: 0.82rem; font-weight: 600; text-align: center;"></div>
+        
+        <div id="listaArquivosUpload" class="file-list-container"></div>
+      </div>
+
+      <div class="card" id="cardAcess">
+        <h3>♿ Aparência e leitura</h3>
+        <div class="rotulo-acess">Tema</div>
+        <div class="opcoes-acess" id="opTema">
+          <button data-v="claro" onclick="definirTema('claro')">☀️ Claro</button>
+          <button data-v="escuro" onclick="definirTema('escuro')">🌙 Escuro</button>
+        </div>
+      </div>
+
+      <div class="card" id="cardSenha">
+        <h3>🔒 Senha do app e do backup</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 10px;">
+          Pede a senha depois de 6 horas sem usar o app, e protege os arquivos de backup.
+        </p>
+        <div class="al-status" id="statusSenha" style="margin: 0 0 8px;"></div>
+        <button class="btn" id="btnSenhaDef" onclick="abrirModalSenha('definir')">🔒 Definir senha</button>
+        <button class="btn" id="btnSenhaAlt" style="display:none;" onclick="abrirModalSenha('alterar')">✏️ Alterar senha</button>
+        <div id="blocoBio" style="display:none; margin: 12px 0 8px;">
+          <div class="al-status" id="statusBio" style="margin: 0 0 8px;"></div>
+          <button class="btn" id="btnBioAtivar" onclick="ativarBiometria()">👆 Ativar biometria</button>
+          <button class="btn btn-danger" id="btnBioDesativar" style="display:none;" onclick="desativarBiometria()">Desativar biometria</button>
+        </div>
+        <button class="btn btn-danger" id="btnSenhaRem" style="display:none;" onclick="abrirModalSenha('remover')">🔓 Remover senha</button>
+      </div>
+
+      <div class="card">
+        <h3>📤 Resumo semanal para a equipe</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 10px;">Gera relatório rápido dos indicadores e visitas para enviar à equipe.</p>
+        <button class="btn" onclick="abrirResumo()">📤 Gerar resumo da semana</button>
+      </div>
+
+      <div class="card">
+        <h3>💾 Backup e Restauração</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 10px;">
+          Salva ou recupera todos os dados e anotações do aplicativo.
+        </p>
+        <input type="file" id="inputArquivoJSON" accept=".json" style="display: none;" onchange="importarBaseJSON(this.files[0])">
+        <button class="btn btn-json-in" onclick="const i = document.getElementById('inputArquivoJSON'); i.value = ''; i.click()">
+          📤 Restaurar backup
+        </button>
+        <button class="btn btn-json-out" onclick="exportarBaseJSON()">
+          📥 Realizar backup
+        </button>
+        <div class="al-status" id="statusBackup"></div>
+      </div>
+
+      <div class="card">
+        <h3>Base de Dados Local</h3>
+        <button class="btn btn-danger" onclick="limparBase()">Limpar Todos os Dados</button>
+      </div>
+
+      <div class="card sobre-app">
+        <h3>Sobre o sistema</h3>
+        <div class="app-versao app-versao-grande"></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="tab-bar">
+    <button id="btnTabAl" class="active" onclick="alternarAba('alertas')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></svg><span>Ações do Dia</span><span id="badgeAlertas" class="badge-tab" style="display:none;"></span></button>
+    <button id="btnTabDash" onclick="alternarAba('dashboard')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/></svg><span>Indicadores</span></button>
+    <button id="btnTabCid" onclick="alternarAba('cidadaos')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.3A5 5 0 0 1 21 19v1"/></svg><span>Cidadãos</span></button>
+    <button id="btnTabUp" onclick="alternarAba('upload')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14 3h-4l-.6 2.6a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2 1.2L10 21h4l.6-2.6a7 7 0 0 0 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg><span>Configurações</span></button>
+  </nav>
+
+  <div class="modal-fundo" id="modalImportacao" onclick="if(event.target===this) fecharModalImportacao()">
+    <div class="modal-caixa">
+      <div class="modal-icone" id="impIcone">📦</div>
+      <h3 id="impTitulo">Importação concluída</h3>
+      <p id="impTexto" style="margin-bottom:12px;"></p>
+      <ul id="impFaltam" style="list-style:none; text-align:left; font-size:0.85rem; color:var(--text); margin:0 0 16px; padding:0; max-height:40vh; overflow:auto;"></ul>
+      <div class="modal-botoes" style="grid-template-columns:1fr;">
+        <button class="btn-salvar" onclick="fecharModalImportacao()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalLimpar" onclick="if(event.target===this) fecharModalLimpar()">
+    <div class="modal-caixa">
+      <div class="modal-icone">🗑️</div>
+      <h3>Limpar todos os dados?</h3>
+      <p>Isso apaga todos os cidadãos e as suas anotações guardadas neste aparelho. Essa ação não pode ser desfeita.</p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalLimpar()">Não</button>
+        <button class="btn-sim" onclick="confirmarLimparBase()">Sim</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo pr-fundo" id="modalProntuario">
+    <div class="pr-folha" role="dialog" aria-label="Prontuário">
+      <div class="pr-topo"><b>Prontuário do paciente</b><button class="pr-x" onclick="fecharProntuario()" aria-label="Fechar">✕</button></div>
+      <div class="pr-abas">
+        <button class="pr-aba" data-aba="resumo" onclick="trocarAbaProntuario('resumo')">Resumo</button>
+        <button class="pr-aba" data-aba="linha" onclick="trocarAbaProntuario('linha')">Linha do tempo</button>
+        <button class="pr-aba" data-aba="ind" onclick="trocarAbaProntuario('ind')">Indicadores</button>
+        <button class="pr-aba" data-aba="vac" onclick="trocarAbaProntuario('vac')">Vacinas</button>
+        <button class="pr-aba" data-aba="notas" onclick="trocarAbaProntuario('notas')">Anotações</button>
+      </div>
+      <div class="pr-corpo" id="prCorpo"></div>
+      <div class="pr-rodape"><button class="btn" id="prVisita" onclick="abrirModalVisita(chaveProntuario)">📝 Registrar visita</button><button class="btn" style="background:#475569" onclick="abrirModalRetorno(chaveProntuario)">📅 Agendar retorno</button></div>
+    </div>
+  </div>
+  <div class="modal-fundo" id="modalVisita" onclick="if(event.target===this) fecharModalVisita()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;">📝 Registrar visita</h3>
+      <p style="text-align:center; margin-bottom: 10px;" id="visitaNome"></p>
+      <label class="campo-rotulo" for="visitaData">Data da visita</label>
+      <input type="date" id="visitaData" class="campo-texto">
+      <label class="campo-rotulo" style="margin-top:12px; display:block;">Motivo (indicador)</label>
+      <div id="visitaMotivos"></div>
+      <p style="margin: 12px 0 14px; font-size: 0.76rem;">A visita entra nos cálculos agora. Registre também no PEC: ao importar os relatórios de novo, o app une as duas sem contar em dobro.</p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalVisita()">Cancelar</button>
+        <button class="btn-sim" style="background:#0284c7;" onclick="salvarVisita()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalResumo" onclick="if(event.target===this) fecharResumo()">
+    <div class="modal-caixa" style="text-align:left; max-width: 420px;">
+      <h3 style="text-align:center;">📤 Resumo semanal</h3>
+      <textarea id="resumoTexto" class="campo-texto" rows="14" style="margin-top:10px; font-size:0.82rem; line-height:1.4; resize:vertical;"></textarea>
+      <label class="visita-opcao"><input type="checkbox" id="resumoNomes" onchange="montarResumo()"> <span>Incluir nomes dos pendentes</span></label>
+      <p style="margin: 6px 0 12px; font-size: 0.76rem;">Por padrão o resumo não traz nomes, só números. Marque a opção apenas se for enviar a quem pode ver dados de saúde dos cidadãos.</p>
+      <div class="modal-botoes" style="flex-wrap: wrap;">
+        <button class="btn-nao" onclick="fecharResumo()">Fechar</button>
+        <button class="btn-sim" style="background:#0284c7;" onclick="copiarResumo()">📋 Copiar</button>
+        <button class="btn-sim" style="background:#16a34a;" onclick="enviarResumo()">📲 Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalSenhaApp" onclick="if(event.target===this) fecharModalSenha()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;" id="saTitulo">🔒 Definir senha</h3>
+      <div id="saAtualBox"><label class="campo-rotulo" for="saAtual" style="display:block;">Senha atual</label><input type="password" id="saAtual" class="campo-texto" autocomplete="current-password"></div>
+      <div id="saNovaBox">
+        <label class="campo-rotulo" for="saNova" style="margin-top:10px; display:block;">Nova senha (mínimo 6 caracteres)</label>
+        <input type="password" id="saNova" class="campo-texto" autocomplete="new-password">
+        <label class="campo-rotulo" for="saNova2" style="margin-top:10px; display:block;">Repita a nova senha</label>
+        <input type="password" id="saNova2" class="campo-texto" autocomplete="new-password">
+      </div>
+      <p id="saNota" style="margin: 10px 0 0; font-size: 0.76rem;">Anote a senha em local seguro. Se for esquecida, não há como recuperar os backups protegidos por ela.</p>
+      <p id="saAviso" style="margin: 8px 0 12px; font-size: 0.8rem; color:#b91c1c; min-height: 1em;"></p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalSenha()">Cancelar</button>
+        <button class="btn-sim" style="background:#0284c7;" onclick="confirmarSenhaApp()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalRetorno" onclick="if(event.target===this) fecharModalRetorno()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;">📅 Agendar retorno</h3>
+      <p style="text-align:center; margin-bottom: 10px;" id="retNome"></p>
+      <label class="campo-rotulo" for="retData" style="display:block;">Voltar no dia</label>
+      <input type="date" id="retData" class="campo-texto">
+      <label class="campo-rotulo" for="retNota" style="margin-top:12px; display:block;">Motivo ou lembrete (opcional)</label>
+      <input type="text" id="retNota" class="campo-texto" maxlength="120" placeholder="Ex.: levar o resultado do exame" autocomplete="off">
+      <p style="margin: 12px 0 14px; font-size: 0.76rem;">O retorno aparece na aba Ações do Dia dentro do período escolhido (7 ou 15 dias) e no lembrete do celular.</p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalRetorno()">Cancelar</button>
+        <button class="btn-sim" style="background:#7c3aed;" onclick="salvarRetorno()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalBackup" onclick="if(event.target===this) fecharModalBackup()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;">💾 Realizar backup</h3>
+      <label class="visita-opcao"><input type="checkbox" id="bkpUsarSenha" checked onchange="alternarCamposSenha()"> <span id="bkpRotulo">Proteger o arquivo com senha</span></label>
+      <div id="bkpCampos">
+        <label class="campo-rotulo" for="bkpSenha" style="margin-top:12px; display:block;">Senha (mínimo 6 caracteres)</label>
+        <input type="password" id="bkpSenha" class="campo-texto" autocomplete="new-password">
+        <label class="campo-rotulo" for="bkpSenha2" style="margin-top:10px; display:block;">Repita a senha</label>
+        <input type="password" id="bkpSenha2" class="campo-texto" autocomplete="new-password">
+        <label class="visita-opcao"><input type="checkbox" id="bkpLigarApp" checked> <span>Usar esta senha também para bloquear o app</span></label>
+        <p style="margin: 10px 0 0; font-size: 0.76rem;">Anote a senha em local seguro. Se ela for esquecida, o backup não pode ser aberto por ninguém.</p>
+      </div>
+      <p id="bkpAviso" style="margin: 8px 0 12px; font-size: 0.8rem; color:#b91c1c; min-height: 1em;"></p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalBackup()">Cancelar</button>
+        <button class="btn-sim" style="background:#0284c7;" onclick="confirmarBackup()">Baixar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalRestaurar" onclick="if(event.target===this) fecharModalRestaurar()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;">🔒 Backup protegido</h3>
+      <p style="text-align:center; margin-bottom: 12px;">Digite a senha usada ao fazer este backup.</p>
+      <input type="password" id="restSenha" class="campo-texto" autocomplete="current-password" onkeydown="if(event.key==='Enter') confirmarRestaurarCifrado()">
+      <p id="restAviso" style="margin: 8px 0 12px; font-size: 0.8rem; color:#b91c1c; min-height: 1em;"></p>
+      <div class="modal-botoes">
+        <button class="btn-nao" onclick="fecharModalRestaurar()">Cancelar</button>
+        <button class="btn-sim" style="background:#0284c7;" onclick="confirmarRestaurarCifrado()">Restaurar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-fundo" id="modalPerfil" onclick="if(event.target===this) fecharModalPerfil()">
+    <div class="modal-caixa" style="text-align:left;">
+      <h3 style="text-align:center;">👤 Dados do ACS</h3>
+      <label class="campo-rotulo" for="perfilNome">Nome do ACS</label>
+      <input type="text" id="perfilNome" class="campo-texto" placeholder="Ex.: Maria da Silva" autocomplete="off">
+      <label class="campo-rotulo" for="perfilMicro">Microárea</label>
+      <input type="text" id="perfilMicro" class="campo-texto" placeholder="Ex.: 05" autocomplete="off">
+      <div class="modal-botoes" style="margin-top:16px;">
+        <button class="btn-nao" onclick="fecharModalPerfil()">Cancelar</button>
+        <button class="btn-salvar" onclick="salvarPerfil()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/versao.js"></script>
+  <script src="./js/nucleo.js"></script>
+  <script src="./js/armazenamento.js"></script>
+  <script src="./js/alertas.js"></script>
+  <script src="./js/agenda.js"></script>
+  <script src="./js/backup.js"></script>
+  <script src="./js/senha.js"></script>
+  <script src="./js/resumo.js"></script>
+  <script src="./js/acessibilidade.js"></script>
+  <script src="./js/vacinacao.js"></script>
+  <script src="./js/retornos.js"></script>
+  <script src="./js/medidas.js"></script>
+  <script src="./js/visitas.js"></script>
+  <script src="./js/mudancas.js"></script>
+  <script src="./js/historico.js"></script>
+  <script src="./js/alcance.js"></script>
+  <script src="./js/xlsx.js"></script>
+  <script src="./js/indicadores.js"></script>
+  <script src="./js/interface.js"></script>
+  <script src="./js/prontuario.js"></script>
+</body>
+</html>
