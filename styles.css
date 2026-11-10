@@ -783,3 +783,8 @@ html.escuro .hero-hoje { filter: invert(0.9) hue-rotate(180deg); }
     .pr-ev { display: flex; gap: 10px; } .pr-ev-ico { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
     .pr-ev-cx { flex: 1; background: #fff; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 4px; font-size: .86rem; } .pr-ev-top { display: flex; justify-content: space-between; gap: 8px; } .pr-ev-o { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .pr-leg, .pr-vazio { color: #64748b; font-size: .76rem; text-align: center; padding: 8px; }
+    .pr-vc { display: inline-block; font-size: .74rem; font-weight: 600; border-radius: 8px; padding: 4px 8px; }
+    .pr-vc.atr { background: #fee2e2; color: #b91c1c; } .pr-vc.prz { background: #fef3c7; color: #92400e; } .pr-vc.ok { background: #dcfce7; color: #15803d; }
+    .pr-vc.fut, .pr-vc.nd { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
+    .pr-vc-g { display: flex; flex-direction: column; gap: 4px; } .pr-vc-h { font-size: .72rem; font-weight: 800; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+    .pr-vc-leg { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -74,6 +74,49 @@
       return `<div class="pr-cab" style="border-left-color:${cor}"><div class="pr-cab-top"><div class="pr-av" style="background:${cor}22;color:${cor}">${escHtml(ini)}</div><div class="pr-cab-id"><div class="pr-cab-nome">${escHtml(c.nome)}</div><div class="pr-cab-sub">${[idade, sexo, c.dt_nascimento].filter(Boolean).map(escHtml).join(' · ')}</div></div><span class="pr-pilula ${urgente ? 'urg' : (pend ? 'pen' : 'ok')}">${urgente ? 'Urgente' : (pend ? pend + ' pendência(s)' : 'Em dia')}</span></div><div class="pr-cab-end">📍 ${escHtml(c.rua || 'Sem rua')}, nº ${escHtml(numeroComComplemento(c) || 'S/N')}</div><div class="pr-tags">${tags}</div></div>`;
     }
 
+
+    // ---- cartão de vacinas (0 a 24 meses): calendário esperado, com a posição de cada vacina em falta
+    const prVN = (v) => normalizarTexto(v || '');
+    const prP = (re, doses) => (n, d) => re.test(n) && doses.includes(d);
+    const PR_CAL = [
+      [0, 'BCG', prP(/bcg/, ['DU', 'D', 'D1'])], [0, 'Hepatite B', prP(/hepatite b/, ['D', 'D1', 'DU'])],
+      [2, 'Penta 1ª', prP(/penta/, ['D1'])], [2, 'Pólio 1ª', prP(/polio|vip/, ['D1'])], [2, 'Pneumo 1ª', prP(/pneumo/, ['D1'])], [2, 'Rotavírus 1ª', prP(/rotav/, ['D1'])],
+      [3, 'Meningo C 1ª', prP(/meningo c/, ['D1'])],
+      [4, 'Penta 2ª', prP(/penta/, ['D2'])], [4, 'Pólio 2ª', prP(/polio|vip/, ['D2'])], [4, 'Pneumo 2ª', prP(/pneumo/, ['D2'])], [4, 'Rotavírus 2ª', prP(/rotav/, ['D2'])],
+      [5, 'Meningo C 2ª', prP(/meningo c/, ['D2'])],
+      [6, 'Penta 3ª', prP(/penta/, ['D3'])], [6, 'Pólio 3ª', prP(/polio|vip/, ['D3'])], [6, 'Influenza 1ª', prP(/influenza/, ['D1'])],
+      [7, 'Influenza 2ª', prP(/influenza/, ['D2'])],
+      [9, 'Febre amarela', prP(/febre amarela/, ['D', 'DU', 'D1'])],
+      [12, 'Tríplice viral 1ª', prP(/triplice viral/, ['D1'])], [12, 'Pneumo reforço', prP(/pneumo/, ['REF'])], [12, 'Meningo C reforço', prP(/meningo c/, ['REF'])],
+      [15, 'DTP reforço', prP(/dtp/, ['R1'])], [15, 'Pólio reforço', prP(/polio|vip/, ['R1'])], [15, 'Hepatite A', prP(/hepatite a/, ['DU', 'D1'])],
+      [15, 'Tetraviral', (n, d) => /tetraviral/.test(n) || (/triplice viral/.test(n) && d === 'D2') || (/varicela/.test(n) && d === 'D1')]
+    ];
+    function prMeses(c) {
+      const m = String(c.dt_nascimento || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); if (!m) return null;
+      const h = new Date(); let t = (h.getFullYear() - +m[3]) * 12 + (h.getMonth() + 1 - +m[2]); if (h.getDate() < +m[1]) t--; return Math.max(0, t);
+    }
+    function prCartaoVacinas(c) {
+      const meses = prMeses(c); if (meses === null || meses > 24) return '';
+      const dose = (x) => String(x.d || '').trim().toUpperCase();
+      const atr = (c.vacAtraso || []).map(x => ({ x, n: prVN(x.v), d: dose(x) })), prz = (c.vacNoPrazo || []).map(x => ({ x, n: prVN(x.v), d: dose(x) }));
+      const dados = !!(c.vacCob && c.vacCob.todas && c.vacCobPrazo);
+      const usados = new Set(); let nA = 0, nP = 0, nOk = 0;
+      const grupos = {};
+      PR_CAL.forEach(([m, rot, f]) => {
+        const a = atr.find(i => f(i.n, i.d)), p = !a && prz.find(i => f(i.n, i.d));
+        if (a) usados.add(a.x); if (p) usados.add(p.x);
+        let st = a ? 'atr' : (p ? 'prz' : (meses < m ? 'fut' : (dados ? 'ok' : 'nd')));
+        if (st === 'atr') nA++; else if (st === 'prz') nP++; else if (st === 'ok') nOk++;
+        (grupos[m] = grupos[m] || []).push(`<span class="pr-vc ${st}">${st === 'ok' ? '✓ ' : ''}${rot}${st === 'atr' ? ' · atrasada' : (st === 'prz' ? ' · no prazo' : '')}</span>`);
+      });
+      let h = Object.keys(grupos).map(m => `<div class="pr-vc-g"><div class="pr-vc-h">${m === '0' ? 'Ao nascer' : m + ' meses'}</div><div class="pr-vtags">${grupos[m].join('')}</div></div>`).join('');
+      const outras = [...atr.map(i => [i, 'atr']), ...prz.map(i => [i, 'prz'])].filter(([i]) => !usados.has(i.x));
+      if (outras.length) { outras.forEach(([i, st]) => { if (st === 'atr') nA++; else nP++; }); h += `<div class="pr-vc-g"><div class="pr-vc-h">Outras</div><div class="pr-vtags">${outras.map(([i, st]) => `<span class="pr-vc ${st}">${escHtml(textoDoseVacina(i.x))}${st === 'atr' ? ' · atrasada' : ' · no prazo'}</span>`).join('')}</div></div>`; }
+      return h + `<small>${nA} atrasada(s) · ${nP} no prazo${dados ? ' · ' + nOk + ' sem pendência' : ''}${c.vacData ? ' · relatório de ' + escHtml(c.vacData) : ''}</small>` +
+        `<div class="pr-vc-leg"><span class="pr-vc atr">atrasada</span><span class="pr-vc prz">no prazo</span><span class="pr-vc ok">sem pendência</span><span class="pr-vc fut">ainda não é a idade</span></div>` +
+        (dados ? '' : '<small>Importe também a planilha "No prazo" para confirmar as vacinas sem pendência.</small>');
+    }
+
     // ---- módulos por perfil
     function prModulos(chave, c) {
       let h = ''; const anos = c.dt_nascimento ? idadeEmAnos(c.dt_nascimento) : null, ind = c.indicadores || {};
@@ -86,7 +129,7 @@
       }
       if (anos !== null && anos < 10 || ind.C2) {
         const v1 = !!c.c2_v1, v2 = !!c.c2_v2, n = (v1 ? 1 : 0) + (v2 ? 1 : 0), m = c.med || {};
-        h += `<div class="pr-bloco"><div class="pr-tit">Caderneta de vacinas</div>${prVacTags(c)}</div>`;
+        { const cv = prCartaoVacinas(c); h += `<div class="pr-bloco"><div class="pr-tit">Cartão de vacinas</div>${cv || prVacTags(c) || '<small>Sem dados de vacina importados.</small>'}</div>`; }
         h += `<div class="pr-bloco"><div class="pr-tit">Visitas do ACS (você)</div><div class="pr-lin"><b>Visitas domiciliares</b><span>${n} de 2</span></div><div class="pr-barra"><i style="width:${n * 50}%;background:#d97706"></i></div><small>${n >= 2 ? 'As 2 visitas já constam no PEC.' : 'Faltam ' + (2 - n) + ' visita(s): programe e registre.'}</small></div>`;
         h += `<div class="pr-bloco"><div class="pr-tit">Com a equipe de saúde</div><div class="pr-lin"><b>Peso e altura</b><span>${m.dtPeso ? '✓ ' + escHtml(m.dtPeso) : 'sem registro'}</span></div><small>${m.dtPeso ? 'Medidos na consulta ou na puericultura.' : 'Encaminhe ou agende a puericultura (enfermeira/médico).'}</small></div>`;
       }
@@ -136,7 +179,7 @@
       return prIndsDe(c).map(k => { const r = prChecklist(c, k); return `<div class="pr-bloco pr-indlin" onclick="abrirIndProntuario('${k}')"><div class="pr-lin"><b style="color:${PR_COR[k]}">${k} · ${PR_NOMES[k]}</b><span class="tag ${r.faltam ? 'tag-danger' : 'tag-ok'}">${r.faltam ? 'Faltam ' + r.faltam : '✓ Meta atingida'}</span></div><div class="pr-barra"><i style="width:${r.total ? Math.round(r.feitos / r.total * 100) : 100}%;background:${PR_COR[k]}"></i></div><small>${r.feitos} de ${r.total} feitos ›</small></div>`; }).join('');
     }
     function prVacinas(c) {
-      const v = prVacTags(c); let hpv = ''; try { hpv = typeof badgeHpv === 'function' ? badgeHpv(c) : ''; } catch (e) {}
+      const v = prCartaoVacinas(c) || prVacTags(c); let hpv = ''; try { hpv = typeof badgeHpv === 'function' ? badgeHpv(c) : ''; } catch (e) {}
       return (v ? `<div class="pr-bloco"><div class="pr-tit">Busca ativa de vacinação</div>${v}</div>` : '<div class="pr-vazio">Sem dados de vacina importados para esta pessoa.</div>') + (hpv ? `<div class="pr-bloco"><div class="pr-tit">HPV</div>${hpv}</div>` : '');
     }
     function prNotas(chave, c) { return `<textarea class="area-anotacao" style="min-height:160px" placeholder="✍️ Anotações do ACS..." onchange="salvarAnotacao('${escHtml(chave)}', this.value)">${escHtml(c.anotacao || '')}</textarea>`; }
