@@ -2,7 +2,7 @@
     let chaveProntuario = null, abaProntuario = 'resumo', indDetalhe = null, filtroLinha = 'tudo';
     const PR_NOMES = { C1: 'Cadastro', C2: 'Criança', C3: 'Gestante', C4: 'Diabetes', C5: 'Hipertensão', C6: 'Pessoa idosa', C7: 'Saúde da mulher' };
     const PR_COR = { C1: '#0284c7', C2: '#d97706', C3: '#0d9488', C4: '#7c3aed', C5: '#dc2626', C6: '#2563eb', C7: '#db2777' };
-    function prontISO(s) { s = String(s || '').trim(); let m; if ((m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/))) return `${m[3]}-${m[2]}-${m[1]}`; if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[0]; return ''; }
+    function prontISO(s) { s = String(s || '').trim(); let m; if ((m = s.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/))) return `${m[3]}-${m[2]}-${m[1]}`; if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[0]; return ''; }
     function prontDatas(t) { return (String(t || '').match(/\d{2}\/\d{2}\/\d{4}/g) || []).map(prontISO); }
     function prChip(k) { return `<span class="pr-chip" style="background:${PR_COR[k]}1a;color:${PR_COR[k]}">${k} · ${PR_NOMES[k]}</span>`; }
     function prIndsDe(c) { return ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'].filter(k => k === 'C1' || (c.indicadores && c.indicadores[k])); }
@@ -89,27 +89,36 @@
       [9, 'Febre amarela', prP(/febre amarela/, ['D', 'DU', 'D1'])],
       [12, 'Tríplice viral 1ª', prP(/triplice viral/, ['D1'])], [12, 'Pneumo reforço', prP(/pneumo/, ['REF'])], [12, 'Meningo C reforço', prP(/meningo c/, ['REF'])],
       [15, 'DTP reforço', prP(/dtp/, ['R1'])], [15, 'Pólio reforço', prP(/polio|vip/, ['R1'])], [15, 'Hepatite A', prP(/hepatite a/, ['DU', 'D1'])],
-      [15, 'Tetraviral', (n, d) => /tetraviral/.test(n) || (/triplice viral/.test(n) && d === 'D2') || (/varicela/.test(n) && d === 'D1')]
+      [15, 'Tetraviral', (n, d) => /tetraviral/.test(n) || (/triplice viral/.test(n) && d === 'D2') || (/varicela/.test(n) && d === 'D1')],
+      [48, 'DTP 2º reforço', prP(/dtp/, ['R2'])], [48, 'Pólio 2º reforço', prP(/polio|vip/, ['R2'])], [48, 'Varicela 2ª', prP(/varicela/, ['D2'])], [48, 'Febre amarela reforço', prP(/febre amarela/, ['REF', 'R1'])],
+      [108, 'HPV 1ª', prP(/hpv|papiloma/, ['D1', 'D', 'DU'])], [114, 'HPV 2ª', prP(/hpv|papiloma/, ['D2'])],
+      [132, 'Meningo ACWY', prP(/meningo acwy/, ['REF', 'D', 'DU', 'D1'])]
     ];
+    const prRotIdade = (m) => m === 0 ? 'Ao nascer' : (m < 24 ? m + ' meses' : (m % 12 === 0 ? (m / 12) + ' anos' : Math.floor(m / 12) + ' anos e ' + (m % 12) + ' meses'));
     function prMeses(c) {
-      const m = String(c.dt_nascimento || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); if (!m) return null;
+      const t0 = String(c.dt_nascimento || '').trim(); let m = t0.match(/(\d{2})[\/.-](\d{2})[\/.-](\d{4})/);   // dd/mm/aaaa ou dd-mm-aaaa
+      if (!m) { const q = t0.match(/^(\d{4})-(\d{2})-(\d{2})/); if (q) m = [0, q[3], q[2], q[1]]; }
+      if (!m) return null;
       const h = new Date(); let t = (h.getFullYear() - +m[3]) * 12 + (h.getMonth() + 1 - +m[2]); if (h.getDate() < +m[1]) t--; return Math.max(0, t);
     }
     function prCartaoVacinas(c) {
-      const meses = prMeses(c); if (meses === null || meses > 24) return '';
+      const meses = prMeses(c); if (meses === null || meses > 168) return '';   // até 14 anos
       const dose = (x) => String(x.d || '').trim().toUpperCase();
       const atr = (c.vacAtraso || []).map(x => ({ x, n: prVN(x.v), d: dose(x) })), prz = (c.vacNoPrazo || []).map(x => ({ x, n: prVN(x.v), d: dose(x) }));
       const dados = !!(c.vacCob && c.vacCob.todas && c.vacCobPrazo);
       const usados = new Set(); let nA = 0, nP = 0, nOk = 0;
       const grupos = {};
+      // até 24 meses mostra o calendário inteiro; depois, só o que já passou e a próxima etapa
+      const proxima = Math.min(...PR_CAL.map(x => x[0]).filter(m => m > meses).concat([Infinity]));
       PR_CAL.forEach(([m, rot, f]) => {
+        if (meses > 24 && m > meses && m !== proxima) return;
         const a = atr.find(i => f(i.n, i.d)), p = !a && prz.find(i => f(i.n, i.d));
         if (a) usados.add(a.x); if (p) usados.add(p.x);
         let st = a ? 'atr' : (p ? 'prz' : (meses < m ? 'fut' : (dados ? 'ok' : 'nd')));
         if (st === 'atr') nA++; else if (st === 'prz') nP++; else if (st === 'ok') nOk++;
         (grupos[m] = grupos[m] || []).push(`<span class="pr-vc ${st}">${st === 'ok' ? '✓ ' : ''}${rot}${st === 'atr' ? ' · atrasada' : (st === 'prz' ? ' · no prazo' : '')}</span>`);
       });
-      let h = Object.keys(grupos).map(m => `<div class="pr-vc-g"><div class="pr-vc-h">${m === '0' ? 'Ao nascer' : m + ' meses'}</div><div class="pr-vtags">${grupos[m].join('')}</div></div>`).join('');
+      let h = Object.keys(grupos).map(m => `<div class="pr-vc-g"><div class="pr-vc-h">${prRotIdade(+m)}</div><div class="pr-vtags">${grupos[m].join('')}</div></div>`).join('');
       const outras = [...atr.map(i => [i, 'atr']), ...prz.map(i => [i, 'prz'])].filter(([i]) => !usados.has(i.x));
       if (outras.length) { outras.forEach(([i, st]) => { if (st === 'atr') nA++; else nP++; }); h += `<div class="pr-vc-g"><div class="pr-vc-h">Outras</div><div class="pr-vtags">${outras.map(([i, st]) => `<span class="pr-vc ${st}">${escHtml(textoDoseVacina(i.x))}${st === 'atr' ? ' · atrasada' : ' · no prazo'}</span>`).join('')}</div></div>`; }
       return h + `<small>${nA} atrasada(s) · ${nP} no prazo${dados ? ' · ' + nOk + ' sem pendência' : ''}${c.vacData ? ' · relatório de ' + escHtml(c.vacData) : ''}</small>` +
