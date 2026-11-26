@@ -183,7 +183,7 @@
       if (indDetalhe) {
         const k = indDetalhe, r = prChecklist(c, k), chave = chaveProntuario;
         return `<button class="pr-voltar" onclick="indDetalhe=null;renderProntuario()">‹ Voltar</button><div class="pr-bloco"><div class="pr-grande" style="color:${PR_COR[k]}">${r.feitos} <small>de ${r.total} feitos</small></div><div class="pr-barra"><i style="width:${r.total ? Math.round(r.feitos / r.total * 100) : 100}%;background:${PR_COR[k]}"></i></div>${r.tempo && r.tempo.texto ? `<small>${escHtml(r.tempo.texto)}</small>` : ''}<small>${r.faltam ? 'Fechando os ' + r.faltam + ' que faltam, a pessoa passa a contar neste indicador.' : 'Meta atingida neste indicador.'}</small></div>
-        <div class="pr-bloco">${r.itens.map(i => `<div class="pr-chk"><span class="pr-bola ${i.ok ? 'ok' : ''}">${i.ok ? '✓' : ''}</span><div><b>${escHtml(i.nome)}</b>${i.nota ? `<div class="${i.ok ? 'pr-nota' : 'pr-falta'}">${i.ok ? '' : 'Falta · '}${escHtml(i.nota)}</div>` : ''}${!i.ok && podeRegistrarVisita(c) && /visita/i.test(i.nome) ? `<button class="pr-mini" onclick="abrirModalVisita('${escHtml(chave)}')">Registrar na visita</button>` : ''}</div></div>`).join('')}</div>`;
+        <div class="pr-bloco">${r.itens.map(i => `<div class="pr-chk"><span class="pr-bola ${i.ok ? 'ok' : ''}">${i.ok ? '✓' : ''}</span><div><b>${escHtml(i.nome)}</b>${i.nota ? `<div class="${i.ok ? 'pr-nota' : 'pr-falta'}">${i.ok ? '' : 'Falta · '}${escHtml(i.nota)}</div>` : ''}</div></div>`).join('')}</div>`;
       }
       return prIndsDe(c).map(k => { const r = prChecklist(c, k); return `<div class="pr-bloco pr-indlin" onclick="abrirIndProntuario('${k}')"><div class="pr-lin"><b style="color:${PR_COR[k]}">${k} · ${PR_NOMES[k]}</b><span class="tag ${r.faltam ? 'tag-danger' : 'tag-ok'}">${r.faltam ? 'Faltam ' + r.faltam : '✓ Meta atingida'}</span></div><div class="pr-barra"><i style="width:${r.total ? Math.round(r.feitos / r.total * 100) : 100}%;background:${PR_COR[k]}"></i></div><small>${r.feitos} de ${r.total} feitos ›</small></div>`; }).join('');
     }
@@ -199,7 +199,6 @@
       const corpo = document.getElementById('prCorpo');
       const f = { resumo: () => prResumo(chaveProntuario, c), linha: () => prLinha(c, chaveProntuario), ind: () => prIndicadores(c), vac: () => prVacinas(c), notas: () => prNotas(chaveProntuario, c) }[abaProntuario];
       const y = corpo.scrollTop; corpo.innerHTML = prCabecalho(chaveProntuario, c) + f(); corpo.scrollTop = y;
-      document.getElementById('prVisita').style.display = podeRegistrarVisita(c) ? '' : 'none';
     }
     function abrirProntuario(chave, aba) { chaveProntuario = chave; abaProntuario = aba || 'resumo'; indDetalhe = null; filtroLinha = 'tudo'; document.getElementById('prCorpo').scrollTop = 0; renderProntuario(); document.getElementById('modalProntuario').classList.add('aberto'); }
     function abrirIndProntuario(k) { abaProntuario = 'ind'; indDetalhe = k; document.getElementById('prCorpo').scrollTop = 0; renderProntuario(); }

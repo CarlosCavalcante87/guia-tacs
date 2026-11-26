@@ -189,10 +189,10 @@
         ${itens.filter(a => a.afKey).map(a => `<button class="btn-al-feito" data-chave="${k}" data-k="${escHtml(a.afKey)}">✓ Feito (${escHtml(a.ind)})</button>`).join('')}
         ${itens.filter(a => a.tipo === 'retorno').map(a => `<button class="btn-ret-feito grande" data-chave="${k}" data-i="${a.ri}">✓ Retorno feito (${a.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})</button>`).join('')}
         <div class="al-acoes">
-          ${podeVisita ? `<button class="btn-visita al-prim" data-chave="${k}">Registrar visita</button>` : `<button class="al-prim btn-prontuario" data-chave="${k}">📋 Prontuário</button>`}
+          <button class="btn-prontuario al-pront" data-chave="${k}">📋 Prontuário</button>
           ${urlWa ? `<a class="al-icone" href="${urlWa}" target="_blank" rel="noopener" aria-label="Chamar ${escHtml((c.nome || '').split(' ')[0])} no WhatsApp">${iconeWa}</a>` : ''}
         </div>
-        <div class="al-links">${podeVisita ? `<button class="al-link btn-prontuario" data-chave="${k}">📋 Prontuário</button>` : ''}<button class="al-link btn-abrir" data-chave="${k}">Abrir cartão do cidadão</button></div>
+        <button class="al-link btn-abrir" data-chave="${k}">Abrir cartão do cidadão</button>
       </div>`;
     }
 

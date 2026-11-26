@@ -876,7 +876,7 @@ function idadeEmAnos(dtStr) {
         const visApp = (c.visitasApp || []).map((v, i) => `<div class="visita-app-linha">📝 Visita registrada no app: <b>${v.d}</b> · ${v.inds.map(k => (MOTIVOS_VISITA[k] || k).replace(/ \(.*$/, '')).join(', ')} <button class="btn-rm-visita" data-chave="${escHtml(chave)}" data-i="${i}" aria-label="Remover visita">✕</button></div>`).join('');
         const retsHtml = (c.retornos || []).map((r, i) => r.feito ? '' : `<div class="retorno-linha">📅 Retorno em <b>${dataBR(r.d)}</b>${r.nota ? ' · ' + escHtml(r.nota) : ''}<span class="acoes-ret"><button class="btn-ret-feito" data-chave="${escHtml(chave)}" data-i="${i}">✓ Feito</button><button class="btn-ret-rm" data-chave="${escHtml(chave)}" data-i="${i}" aria-label="Remover retorno">✕</button></span></div>`).join('');
         const vacHtml = (c.vacAtraso && c.vacAtraso.length) ? `<div class="vac-bloco"><b>💉 ${c.vacAtraso.length} vacina(s) em atraso</b><div>${c.vacAtraso.map(x => escHtml(textoDoseVacina(x))).join(' · ')}</div><small>Relatório de ${escHtml(c.vacData || '')}</small></div>` : '';
-        const visitaHtml = vacHtml + (podeRegistrarVisita(c) ? `${visApp}<button class="btn-visita" data-chave="${escHtml(chave)}">📝 Registrar visita</button>` : '') + retsHtml + `<button class="btn-retorno" data-chave="${escHtml(chave)}">📅 Agendar retorno</button>`;
+        const visitaHtml = vacHtml + (podeRegistrarVisita(c) ? visApp : '') + retsHtml + `<button class="btn-retorno" data-chave="${escHtml(chave)}">📅 Agendar retorno</button>`;
         const anotacaoHtml = `<textarea class="area-anotacao" placeholder="✍️ Anotações do ACS..." onchange="salvarAnotacao('${chave}', this.value)">${valAnotacao}</textarea>`;
 
         const temPend = algumaPendente;
