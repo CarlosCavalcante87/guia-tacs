@@ -415,7 +415,7 @@
         <button class="pr-aba" data-aba="notas" onclick="trocarAbaProntuario('notas')">Anotações</button>
       </div>
       <div class="pr-corpo" id="prCorpo"></div>
-      <div class="pr-rodape"><button class="btn" id="prVisita" onclick="abrirModalVisita(chaveProntuario)">📝 Registrar visita</button><button class="btn" style="background:#475569" onclick="abrirModalRetorno(chaveProntuario)">📅 Agendar retorno</button></div>
+      <div class="pr-rodape" style="grid-template-columns:1fr"><button class="btn" style="background:#475569" onclick="abrirModalRetorno(chaveProntuario)">📅 Agendar retorno</button></div>
     </div>
   </div>
   <div class="modal-fundo" id="modalVisita" onclick="if(event.target===this) fecharModalVisita()">

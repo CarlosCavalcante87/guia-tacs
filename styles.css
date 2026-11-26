@@ -788,3 +788,4 @@ html.escuro .hero-hoje { filter: invert(0.9) hue-rotate(180deg); }
     .pr-vc.fut, .pr-vc.nd { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
     .pr-vc-g { display: flex; flex-direction: column; gap: 4px; } .pr-vc-h { font-size: .72rem; font-weight: 800; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
     .pr-vc-leg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .al-acoes .al-pront { flex: 1; margin: 0; min-height: 48px; }
